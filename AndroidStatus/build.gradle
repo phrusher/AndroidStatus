@@ -4,6 +4,8 @@ android {
     compileSdkVersion 19
     buildToolsVersion "19.0.3"
 
+    android.aaptOptions.useAaptPngCruncher = true // fixes issue with gradle not including appcompat library on < API 11
+
     defaultConfig {
         minSdkVersion 7
         targetSdkVersion 16
