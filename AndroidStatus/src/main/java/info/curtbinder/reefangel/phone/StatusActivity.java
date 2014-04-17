@@ -12,6 +12,7 @@ import info.curtbinder.reefangel.controller.Controller;
 import info.curtbinder.reefangel.controller.Relay;
 import info.curtbinder.reefangel.db.StatusProvider;
 import info.curtbinder.reefangel.db.StatusTable;
+import info.curtbinder.reefangel.phone.helpers.DisplayDateHelper;
 import info.curtbinder.reefangel.phone.pages.AIPage;
 import info.curtbinder.reefangel.phone.pages.CommandsPage;
 import info.curtbinder.reefangel.phone.pages.ControllerPage;
@@ -26,7 +27,12 @@ import info.curtbinder.reefangel.service.MessageCommands;
 import info.curtbinder.reefangel.service.UpdateService;
 import info.curtbinder.reefangel.service.XMLTags;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -38,6 +44,7 @@ import android.os.Bundle;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
+import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -58,12 +65,20 @@ public class StatusActivity extends BaseActivity implements
 	private static boolean fRestoreState = false;
 
 	// Display views
-	private TextView updateTime;
 	private ViewPager pager;
 	private CustomPagerAdapter pagerAdapter;
 	private String[] vortechModes;
 	private View[] appPages;
-	// minimum number of pages: status, main relay
+
+    // Menu items
+    private MenuItem mStatus;
+
+    // Timer
+    private Timer mAutoUpdate;
+
+    private long mUpdateTime;
+
+    // minimum number of pages: status, main relay
 	private static final int MIN_PAGES = 3;
 
 	private static final int POS_START = 0;
@@ -156,6 +171,7 @@ public class StatusActivity extends BaseActivity implements
 	protected void onPause ( ) {
 		super.onPause();
 		unregisterReceiver( receiver );
+        mAutoUpdate.cancel();
 	}
 
 	protected void onResume ( ) {
@@ -177,6 +193,18 @@ public class StatusActivity extends BaseActivity implements
 
 		updateViewsVisibility();
 		updateDisplay();
+
+        mAutoUpdate = new Timer();
+        mAutoUpdate.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        setUpdateTime();
+                    }
+                });
+            }
+        }, 0, 15000); // updates each 15 secs
 
 		// the last thing we do is display the changelog if necessary
 		rapp.displayChangeLog( this );
@@ -215,7 +243,6 @@ public class StatusActivity extends BaseActivity implements
 	}
 
 	private void findViews ( ) {
-		updateTime = (TextView) findViewById( R.id.updated );
 		pager = (ViewPager) findViewById( R.id.pager );
 	}
 
@@ -480,8 +507,7 @@ public class StatusActivity extends BaseActivity implements
 			}
 		}
 		c.close();
-		
-		updateTime.setText( updateStatus );
+
 		pageController.updateDisplay( values );
 		pageDimming.updateDisplay( pwme );
 		pageRadion.updateDisplay( rf );
@@ -500,7 +526,39 @@ public class StatusActivity extends BaseActivity implements
 			// update the screen / pages if necessary
 			checkDeviceModules( newEM, newREM );
 		}
+        setUpdateTime(updateStatus);
 	}
+
+    private void setUpdateTime(){
+        setUpdateTime(mUpdateTime);
+    }
+
+    private void setUpdateTime(String updateStatus){
+        try {
+            Date result = textToDate(updateStatus);
+            setUpdateTime(result.getTime());
+        } catch (ParseException ex){
+            Log.e(TAG, ex.getMessage());
+            mStatus.setTitle("");
+        }
+    }
+
+    private void setUpdateTime(long timestamp){
+        mUpdateTime = timestamp;
+        if(mStatus != null){
+            long time = new Date().getTime() - timestamp;
+            String msg = DisplayDateHelper.timespanToString(time);
+            mStatus.setTitle(msg);
+        }
+    }
+
+    private Date textToDate(String txt) throws ParseException {
+        java.text.DateFormat dft =
+                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.DEFAULT,
+                        java.text.DateFormat.DEFAULT,
+                        Locale.getDefault());
+        return dft.parse(txt);
+    }
 
 	class StatusReceiver extends BroadcastReceiver {
 		// private final String TAG = StatusReceiver.class.getSimpleName();
@@ -511,14 +569,13 @@ public class StatusActivity extends BaseActivity implements
 				int id =
 						intent.getIntExtra( MessageCommands.UPDATE_STATUS_ID,
 											R.string.defaultStatusText );
-				if ( id > -1 ) {
-					updateTime.setText( id );
-				} else {
-					// we are updating with a string being sent to us
-					updateTime
-							.setText( intent
-									.getStringExtra( MessageCommands.UPDATE_STATUS_STRING ) );
-				}
+
+                if(id < 0) {
+                    Toast.makeText(StatusActivity.this, intent.getStringExtra( MessageCommands.UPDATE_STATUS_STRING ), Toast.LENGTH_LONG).show();
+                } else {
+                    // Id >= 0 is debugging info
+                    //String response = getResources().getString( id );
+                }
 			} else if ( action
 					.equals( MessageCommands.UPDATE_DISPLAY_DATA_INTENT ) ) {
 				updateDisplay();
@@ -536,18 +593,14 @@ public class StatusActivity extends BaseActivity implements
 			} else if ( action.equals( MessageCommands.MEMORY_RESPONSE_INTENT ) ) {
 				String response =
 						intent.getStringExtra( MessageCommands.MEMORY_RESPONSE_STRING );
-				if ( response.equals( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
+				if ( !response.equals( XMLTags.Ok ) ) {
 					Toast.makeText( StatusActivity.this, response,
 									Toast.LENGTH_LONG ).show();
 				}
 			} else if ( action.equals( MessageCommands.COMMAND_RESPONSE_INTENT ) ) {
 				String response =
 						intent.getStringExtra( MessageCommands.COMMAND_RESPONSE_STRING );
-				if ( response.contains( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
+				if ( !response.contains( XMLTags.Ok ) ) {
 					Toast.makeText( StatusActivity.this, response,
 									Toast.LENGTH_LONG ).show();
 				}
@@ -815,6 +868,9 @@ public class StatusActivity extends BaseActivity implements
 	@Override
 	public boolean onCreateOptionsMenu ( Menu menu ) {
 		getMenuInflater().inflate( R.menu.status_menu, menu );
+        mStatus = menu.findItem(R.id.refreshStatus);
+        setUpdateTime();
+
 		return super.onCreateOptionsMenu(menu);
 	}
 

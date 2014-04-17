@@ -13,20 +13,6 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
     android:layout_gravity="center"
     android:stretchColumns="1" >
 
-    <TableRow 
-        android:paddingLeft="8dp"
-        android:paddingRight="8dp" >
-
-        <TextView
-            style="@style/UpdateText"
-            android:text="@string/labelLastUpdated" />
-
-        <TextView
-            android:id="@+id/updated"
-            style="@style/UpdateText.Status"
-            android:textIsSelectable="false" />
-    </TableRow>
-
     <android.support.v4.view.ViewPager
         android:id="@+id/pager"
         android:layout_width="fill_parent"

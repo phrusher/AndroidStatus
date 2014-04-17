@@ -9,7 +9,10 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
 
 <menu xmlns:android="http://schemas.android.com/apk/res/android" 
     xmlns:app="http://schemas.android.com/apk/res-auto" >
-
+    <item
+        android:id="@+id/refreshStatus"
+        android:title="Last update"
+        app:showAsAction="always" />
     <item
         android:id="@+id/refresh"
         android:icon="@drawable/ic_action_reload"

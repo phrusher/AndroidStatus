@@ -11,6 +11,12 @@ android {
         targetSdkVersion 16
     }
 
+    sourceSets {
+        instrumentTest {
+            java.srcDirs = ['androidTest/java']
+        }
+    }
+
     buildTypes {
         release {
             runProguard false
