@@ -41,6 +41,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
@@ -72,6 +73,7 @@ public class StatusActivity extends BaseActivity implements
 
     // Menu items
     private MenuItem mStatus;
+    private MenuItem mRefresh;
 
     // Timer
     private Timer mAutoUpdate;
@@ -411,6 +413,8 @@ public class StatusActivity extends BaseActivity implements
 	}
 
 	private void launchStatusTask ( ) {
+        MenuItemCompat.setActionView(this.mRefresh, R.layout.actionview_refresh);
+
 		Intent i = new Intent( this, UpdateService.class );
 		i.setAction( MessageCommands.QUERY_STATUS_INTENT );
 		startService( i );
@@ -579,6 +583,7 @@ public class StatusActivity extends BaseActivity implements
 			} else if ( action
 					.equals( MessageCommands.UPDATE_DISPLAY_DATA_INTENT ) ) {
 				updateDisplay();
+                resetRefreshIcon();
 			} else if ( action.equals( MessageCommands.VORTECH_UPDATE_INTENT ) ) {
 				int type =
 						intent.getIntExtra( MessageCommands.VORTECH_UPDATE_TYPE,
@@ -606,6 +611,12 @@ public class StatusActivity extends BaseActivity implements
 				}
 			}
 		}
+
+        private void resetRefreshIcon(){
+            if(StatusActivity.this.mRefresh != null) {
+                MenuItemCompat.setActionView(StatusActivity.this.mRefresh, null);
+            }
+        }
 	}
 
 	private String[] getNeverValues ( int qty ) {
@@ -868,7 +879,9 @@ public class StatusActivity extends BaseActivity implements
 	@Override
 	public boolean onCreateOptionsMenu ( Menu menu ) {
 		getMenuInflater().inflate( R.menu.status_menu, menu );
-        mStatus = menu.findItem(R.id.refreshStatus);
+
+        this.mRefresh = menu.findItem(R.id.refresh);
+        this.mStatus = menu.findItem(R.id.refreshStatus);
         setUpdateTime();
 
 		return super.onCreateOptionsMenu(menu);
