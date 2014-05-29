@@ -196,3 +196,12 @@ Changelog of all the versions of AndroidStatus
  * added in new memory locations for v1.1.0 libraries
  * added reboot command
  
+0.9.4
+ * improved XML downloading
+ * added 4 channel water level displaying
+ * allow portal to be chosen from first run screen
+ * removed Commands option from overflow menu, changed to Date/Time
+ * get software version is added to the Commands Page
+ * added humidity expansion
+ * code cleanup
+ 

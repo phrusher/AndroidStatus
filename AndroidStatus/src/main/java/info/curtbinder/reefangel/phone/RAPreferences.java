@@ -46,6 +46,11 @@ public class RAPreferences {
 		SharedPreferences.Editor editor = prefs.edit();
 		editor.putBoolean( rapp.getString( keyid ), value ).commit();
 	}
+	
+	public void set ( String key, boolean value ) {
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putBoolean( key, value ).commit();
+	}
 
 	public void set ( String key, int value ) {
 		SharedPreferences.Editor editor = prefs.edit();
@@ -333,8 +338,17 @@ public class RAPreferences {
 		return getBoolean( R.string.prefPHExpVisibilityKey, false );
 	}
 
-	public boolean getWaterLevelVisibility ( ) {
-		return getBoolean( R.string.prefWaterLevelVisibilityKey, false );
+	// key:  wl_visibility
+	public boolean getWaterLevelVisibility ( int port ) {
+		//return getBoolean( R.string.prefWaterLevelVisibilityKey, false );
+		String key = "wl";
+		if ( port > 0 ) key += port; 
+		key += "_visibility";
+		return getBoolean( key, false);
+	}
+	
+	public boolean getHumidityVisibility ( ) {
+		return getBoolean( R.string.prefHumidityVisibilityKey, false );
 	}
 
 	public String getT1Label ( ) {
@@ -380,10 +394,31 @@ public class RAPreferences {
 	public String getPHExpLabel ( ) {
 		return getString( R.string.prefPHExpLabelKey, R.string.labelPHExp );
 	}
+	
+	public String getHumidityLabel ( ) {
+		return getString( R.string.prefHumidityLabelKey, R.string.labelHumidity );
+	}
 
-	public String getWaterLevelLabel ( ) {
-		return getString(	R.string.prefWaterLevelLabelKey,
-							R.string.labelWaterLevel );
+	// key: wl_label
+	public String getWaterLevelLabelKey ( int port ) {
+		String key = "wl";
+		if ( port > 0 ) { 
+			key += port;
+		}
+		key += "_label";
+		return key;
+	}
+	
+	public String getWaterLevelLabel ( int port ) {
+		return prefs.getString( getWaterLevelLabelKey(port), getWaterLevelDefaultLabel(port));
+	}
+	
+	public String getWaterLevelDefaultLabel ( int port ) {
+		String def = rapp.getString( R.string.labelWaterLevel );
+		if ( port > 0 ) {
+			def += " " + port;
+		}
+		return def;
 	}
 
 	// Relay Labels
@@ -415,6 +450,14 @@ public class RAPreferences {
 
 	public void setPreviousEM ( short em ) {
 		set( rapp.getString( R.string.prefPreviousEMKey ), em );
+	}
+	
+	public int getPreviousEM1 ( ) {
+		return getInt( R.string.prefPreviousEM1Key, -1 );
+	}
+	
+	public void setPreviousEM1 ( short em1 ) {
+		set( rapp.getString( R.string.prefPreviousEM1Key ), em1 );
 	}
 
 	public boolean isAutoUpdateModulesEnabled ( ) {

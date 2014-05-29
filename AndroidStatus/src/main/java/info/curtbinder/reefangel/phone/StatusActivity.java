@@ -44,6 +44,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -121,6 +122,7 @@ public class StatusActivity extends BaseActivity implements
 		filter.addAction( MessageCommands.VORTECH_UPDATE_INTENT );
 		filter.addAction( MessageCommands.MEMORY_RESPONSE_INTENT );
 		filter.addAction( MessageCommands.COMMAND_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.VERSION_RESPONSE_INTENT );
 
 		vortechModes =
 				getResources().getStringArray( R.array.vortechModeLabels );
@@ -314,8 +316,23 @@ public class StatusActivity extends BaseActivity implements
 									rapp.raprefs.getPHExpLabel(),
 									getString( R.string.labelPHExp ) );
 		pageController.setLabel(	ControllerPage.WL_INDEX,
-									rapp.raprefs.getWaterLevelLabel(),
-									getString( R.string.labelWaterLevel ) );
+									rapp.raprefs.getWaterLevelLabel(0),
+									rapp.raprefs.getWaterLevelDefaultLabel(0) );
+		pageController.setLabel(	ControllerPage.WL1_INDEX,
+									rapp.raprefs.getWaterLevelLabel(1),
+									rapp.raprefs.getWaterLevelDefaultLabel(1) );
+		pageController.setLabel(	ControllerPage.WL2_INDEX,
+									rapp.raprefs.getWaterLevelLabel(2),
+									rapp.raprefs.getWaterLevelDefaultLabel(2) );
+		pageController.setLabel(	ControllerPage.WL3_INDEX,
+									rapp.raprefs.getWaterLevelLabel(3),
+									rapp.raprefs.getWaterLevelDefaultLabel(3) );
+		pageController.setLabel(	ControllerPage.WL4_INDEX,
+									rapp.raprefs.getWaterLevelLabel(4),
+									rapp.raprefs.getWaterLevelDefaultLabel(4) );
+		pageController.setLabel( ControllerPage.HUMIDITY_INDEX, 
+		                         rapp.raprefs.getHumidityLabel(), 
+		                         getString(R.string.labelHumidity) );
 	}
 
 	private void setRelayLabels ( ) {
@@ -364,7 +381,17 @@ public class StatusActivity extends BaseActivity implements
 		pageController.setVisibility(	ControllerPage.PHE_INDEX,
 										rapp.raprefs.getPHExpVisibility() );
 		pageController.setVisibility(	ControllerPage.WL_INDEX,
-										rapp.raprefs.getWaterLevelVisibility() );
+										rapp.raprefs.getWaterLevelVisibility(0) );
+		pageController.setVisibility(	ControllerPage.WL1_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(1) );
+		pageController.setVisibility(	ControllerPage.WL2_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(2) );
+		pageController.setVisibility(	ControllerPage.WL3_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(3) );
+		pageController.setVisibility(	ControllerPage.WL4_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(4) );
+		pageController.setVisibility( ControllerPage.HUMIDITY_INDEX, 
+		                              rapp.raprefs.getHumidityVisibility() );
 	}
 
 	@Override
@@ -404,7 +431,7 @@ public class StatusActivity extends BaseActivity implements
 		String[] ai;
 		String[] io;
 		String[] custom;
-		short r, ron, roff, newEM, newREM;
+		short r, ron, roff, newEM, newEM1, newREM;
 		short[] expr = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] expron = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] exproff = new short[Controller.MAX_EXPANSION_RELAYS];
@@ -464,6 +491,7 @@ public class StatusActivity extends BaseActivity implements
 			exproff[7] =
 					c.getShort( c.getColumnIndex( StatusTable.COL_R8OFFMASK ) );
 			newEM = c.getShort( c.getColumnIndex( StatusTable.COL_EM ) );
+			newEM1 = c.getShort( c.getColumnIndex( StatusTable.COL_EM1 ) );
 			newREM = c.getShort( c.getColumnIndex( StatusTable.COL_REM ) );
 		} else {
 			updateStatus = getString( R.string.messageNever );
@@ -474,7 +502,7 @@ public class StatusActivity extends BaseActivity implements
 			ai = getNeverValues( Controller.MAX_AI_CHANNELS );
 			io = getNeverValues( Controller.MAX_IO_CHANNELS );
 			custom = getNeverValues( Controller.MAX_CUSTOM_VARIABLES );
-			r = ron = roff = newEM = newREM = 0;
+			r = ron = roff = newEM = newEM1 = newREM = 0;
 			for ( int i = 0; i < Controller.MAX_EXPANSION_RELAYS; i++ ) {
 				expr[i] = expron[i] = exproff[i] = 0;
 			}
@@ -498,7 +526,7 @@ public class StatusActivity extends BaseActivity implements
 		
 		if ( rapp.raprefs.isAutoUpdateModulesEnabled() ) {
 			// update the screen / pages if necessary
-			checkDeviceModules( newEM, newREM );
+			checkDeviceModules( newEM, newEM1, newREM );
 		}
 	}
 
@@ -551,6 +579,11 @@ public class StatusActivity extends BaseActivity implements
 					Toast.makeText( StatusActivity.this, response,
 									Toast.LENGTH_LONG ).show();
 				}
+			} else if ( action.equals( MessageCommands.VERSION_RESPONSE_INTENT ) ) {
+				// set the version button's text to the version of the software
+				((Button) findViewById( R.id.command_button_version ))
+				.setText( intent.getStringExtra( MessageCommands.VERSION_RESPONSE_STRING ) );
+				updateTime.setText( R.string.statusFinished );
 			}
 		}
 	}
@@ -601,7 +634,21 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_PHE ) ),
 								c.getString( c
 										.getColumnIndex( StatusTable.COL_WL ) )
-										+ "%" };
+										+ "%",
+								c.getString( c
+										.getColumnIndex( StatusTable.COL_WL1 ) )
+										+ "%",
+								c.getString( c
+								        .getColumnIndex( StatusTable.COL_WL2 ) )
+										+ "%",
+								c.getString( c
+										.getColumnIndex( StatusTable.COL_WL3 ) )
+										+ "%",
+								c.getString( c
+								        .getColumnIndex( StatusTable.COL_WL4 ) )
+										+ "%",
+								c.getString( c.getColumnIndex( StatusTable.COL_HUM ) )
+								        + "%" };
 	}
 
 	private String[] getPWMEValues ( Cursor c ) {
@@ -712,11 +759,11 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_C7 ) ) };
 	}
 
-	private void checkDeviceModules ( short newEM, short newREM ) {
+	private void checkDeviceModules ( short newEM, short newEM1, short newREM ) {
 		// FIXME fix preference setting functions
 		boolean fReload = false;
 		short oldEM = (short) rapp.raprefs.getPreviousEM();
-		Log.d( TAG, "Old: " + oldEM + " New: " + newEM );
+		Log.d( TAG, "EM: Old: " + oldEM + " New: " + newEM );
 		if ( oldEM != newEM ) {
 			// expansion modules different
 			// set flag to reload the pages
@@ -772,12 +819,47 @@ public class StatusActivity extends BaseActivity implements
 			else
 				f = false;
 			Log.d( TAG, "WATER: " + f );
-			rapp.raprefs.set( R.string.prefWaterLevelVisibilityKey, f );
+			String key;
+			for ( int i = 0; i < Controller.MAX_WATERLEVEL_PORTS; i++ ) {
+				key = "wl";
+				if ( i > 0 ) key += i;
+				key += "_visibility";
+				rapp.raprefs.set( key, f );
+			}
 
 			// update the previous settings to the new ones after we change
 			rapp.raprefs.setPreviousEM( newEM );
 		}
 
+		short oldEM1 = (short) rapp.raprefs.getPreviousEM1();
+		Log.d( TAG, "EM1: Old: " + oldEM1 + " New: " + newEM1 );
+		if ( oldEM1 != newEM1 ) {
+			boolean f = false;
+			if ( Controller.isHumidityModuleInstalled( newEM1 ) )
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "Humidity: " + f);
+			// TODO finish setting EM1 modules
+			rapp.raprefs.set( R.string.prefHumidityVisibilityKey, f );
+			
+			if ( Controller.isDCPumpControlModuleInstalled( newEM1 ) )
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "DCPump: " + f);
+			//rapp.raprefs.set( R.string.prefExpDCPumpEnableKey, f );
+			
+			if ( Controller.isLeakDetectorModuleInstalled( newEM1 ) ) 
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "Leak Detector: " + f);
+			//rapp.raprefs.set( R.string.prefExpLeakDetectorEnableKey, f );
+			
+			rapp.raprefs.setPreviousEM1( newEM1 );
+		}
+		
 		int newRQty = Controller.getRelayExpansionModulesInstalled( newREM );
 		int oldRQty = rapp.raprefs.getExpansionRelayQuantity();
 		Log.d( TAG, "Old Qty: " + oldRQty + " New Qty: " + newRQty );
@@ -857,9 +939,9 @@ public class StatusActivity extends BaseActivity implements
 				i.putExtra( Globals.PRE10_LOCATIONS,
 							rapp.raprefs.useOldPre10MemoryLocations() );
 				break;
-			case R.id.commands:
-				// launch commands
-				i = new Intent( this, CommandTabsActivity.class );
+			case R.id.datetime:
+				// launch date & time
+				i = new Intent( this, DateTimeActivity.class );
 				break;
 			default:
 				return super.onOptionsItemSelected( item );

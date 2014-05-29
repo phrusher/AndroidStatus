@@ -10,7 +10,7 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
 <resources>
 
     <string name="app_name">Reef Angel Status</string>
-    <string name="app_version">0.9.3</string>
+    <string name="app_version">0.9.4</string>
 
     <!-- Menu Labels -->
     <string name="menuMainRefresh">Refresh</string>
@@ -60,9 +60,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="descriptionModes">Feeding and Water Change buttons enter the appropriate modes. Press the Exit button to simulate a button press on the controller, which exits the modes.</string>
     <!-- First Run screen -->
     <string name="descriptionFirstRun">Before you begin, you must configure a few settings in order for the application to run properly.\n
-* Hostname (required): Enter the hostname or IP address of your controller.\n
-* Port (optional): Enter the port for the controller (leave blank if unknown or the default).\n
-* User ID (optional): Enter your username for the forum. This is to download your labels stored on the portal.</string>
+* Device: Select Portal or Controller\n
+* Hostname: Enter the hostname or IP address of your controller.\n
+* Port: Enter the port for the controller (leave blank if unknown or the default).\n
+* User ID: Enter your username for the forum. This is to download your labels and/or data from the portal.</string>
     <!-- Date and Time screen -->
     <string name="descriptionCurrentControllerTime">Press \'Get Time\' to retrieve the current date and time from the controller.  Press \'Set Current Time\' to set the date and time to match your device.</string>
     <string name="descriptionCustomControllerTime">You can enter a custom date and time. Use \'Change Time\' or \'Change Date\' to enter the custom date and time. Use \'Set Custom Time\' to set it.</string>
@@ -75,7 +76,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="buttonOk">OK</string>
     <string name="buttonYes">Yes</string>
     <string name="buttonNo">No</string>
-    <string name="buttonVersion">Get Version</string>
+    <string name="buttonVersion">Get RA Version</string>
     <string name="buttonDateGet">Get Time</string>
     <string name="buttonDateSet">Set Current Time</string>
     <string name="buttonRead">Read Value</string>
@@ -113,6 +114,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="labelORP">ORP</string>
     <string name="labelPHExp">PH Exp</string>
     <string name="labelWaterLevel">Water</string>
+    <string name="labelHumidity">Humidity</string>
     <string name="labelAtoLow">ATO Low</string>
     <string name="labelAtoHigh">ATO High</string>
     <string name="labelPort1">Port 1</string>
@@ -160,6 +162,11 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="labelLightsOn">Lights On</string>
     <string name="labelLightsOff">Lights Off</string>
     <string name="labelReboot">Reboot</string>
+    <string name="labelCalibratePH">Calibrate PH</string>
+    <string name="labelCalibrateSalinity">Calibrate Salinity</string>
+    <string name="labelCalibrateORP">Calibrate ORP</string>
+    <string name="labelCalibratePHExp">Calibrate PH Exp</string>
+    <string name="labelCalibrateWaterLevel">Calibrate Water Level</string>
     <string name="labelParameter">Parameter:</string>
     <string name="labelCondition">Condition:</string>
     <string name="websiteReefangel">http://www.reefangel.com/</string>
@@ -285,7 +292,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityVisibilityTitle">Salinity</string>
     <string name="prefORPVisibilityTitle">ORP</string>
     <string name="prefPHExpVisibilityTitle">PH Expansion</string>
-    <string name="prefWaterLevelVisibilityTitle">Water Level</string>
+<!--     <string name="prefWaterLevelVisibilityTitle">Water Level</string> -->
     <string name="prefResetCategory">Reset Settings</string>
     <string name="prefResetLabelsTitle">Reset Labels</string>
     <string name="prefResetSummary">Defaults</string>
@@ -301,6 +308,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefAPLabelTitle">Actinic Channel</string>
     <string name="prefPHExpLabelTitle">PH Expansion</string>
     <string name="prefWaterLevelLabelTitle">Water Level</string>
+    <string name="prefWaterLevel1LabelTitle">Water Level 1</string>
+    <string name="prefWaterLevel2LabelTitle">Water Level 2</string>
+    <string name="prefWaterLevel3LabelTitle">Water Level 3</string>
+    <string name="prefWaterLevel4LabelTitle">Water Level 4</string>
     <string name="prefPort1LabelTitle">Port 1</string>
     <string name="prefPort2LabelTitle">Port 2</string>
     <string name="prefPort3LabelTitle">Port 3</string>
@@ -398,7 +409,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityVisibilityKey">salinity_visibility</string>
     <string name="prefORPVisibilityKey">orp_visibility</string>
     <string name="prefPHExpVisibilityKey">phe_visibility</string>
-    <string name="prefWaterLevelVisibilityKey">wl_visibility</string>
+    <string name="prefHumidityVisibilityKey">humidity_visibility</string>
+<!--     <string name="prefWaterLevelVisibilityKey">wl_visibility</string> -->
     <string name="prefResetLabelsKey">reset_labels</string>
     <string name="prefResetEnabledPortsKey">reset_enabled_ports</string>
     <string name="prefControllerLabelsDownloadKey">download_labels</string>
@@ -413,7 +425,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityLabelKey">salinity_label</string>
     <string name="prefORPLabelKey">orp_label</string>
     <string name="prefPHExpLabelKey">phe_label</string>
-    <string name="prefWaterLevelLabelKey">wl_label</string>
+    <string name="prefHumidityLabelKey">humidity_label</string>
+<!--     <string name="prefWaterLevelLabelKey">wl_label</string> -->
     <string name="prefMainPort1LabelKey">main_port1_label</string>
     <string name="prefMainPort2LabelKey">main_port2_label</string>
     <string name="prefMainPort3LabelKey">main_port3_label</string>
@@ -535,6 +548,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefPre10MemoryKey">pre_10_memory_locations</string>
     <string name="prefPreviousCodeVersionKey">previous_version</string>
     <string name="prefPreviousEMKey">previous_em</string>
+    <string name="prefPreviousEM1Key">previous_em1</string>
     <string name="prefAutoUpdateIntervalKey">update_interval</string>
     <string name="prefAutoUpdateModulesKey">update_modules</string>
     <string name="prefAutoUpdateProfileKey">update_profile</string>

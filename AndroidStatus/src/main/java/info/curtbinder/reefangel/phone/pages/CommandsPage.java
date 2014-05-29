@@ -62,12 +62,25 @@ public class CommandsPage extends RAPage implements OnClickListener {
 		b.setOnClickListener( this );
 		b = (Button) findViewById( R.id.command_button_overheat_clear );
 		b.setOnClickListener( this );
+//		b = (Button) findViewById( R.id.command_button_calibrate_ph );
+//		b.setOnClickListener( this );
+//		b = (Button) findViewById( R.id.command_button_calibrate_salinity );
+//		b.setOnClickListener( this );
+//		b = (Button) findViewById( R.id.command_button_calibrate_water );
+//		b.setOnClickListener( this );
+//		b = (Button) findViewById( R.id.command_button_calibrate_orp );
+//		b.setOnClickListener( this );
+//		b = (Button) findViewById( R.id.command_button_calibrate_phe );
+//		b.setOnClickListener( this );
+		b = (Button) findViewById( R.id.command_button_version );
+		b.setOnClickListener( this );
 	}
 
 	@Override
 	public void onClick ( View v ) {
 		Intent i = new Intent( ctx, UpdateService.class );
 		String s = RequestCommands.ExitMode;
+		String action = MessageCommands.COMMAND_SEND_INTENT;
 		switch ( v.getId() ) {
 			case R.id.command_button_feed:
 				s = RequestCommands.FeedingMode;
@@ -90,8 +103,26 @@ public class CommandsPage extends RAPage implements OnClickListener {
 			case R.id.command_button_reboot:
 				s = RequestCommands.Reboot;
 				break;
+//			case R.id.command_button_calibrate_ph:
+//				s = RequestCommands.CalibratePH;
+//				break;
+//			case R.id.command_button_calibrate_phe:
+//				s = RequestCommands.CalibratePHE;
+//				break;
+//			case R.id.command_button_calibrate_orp:
+//				s = RequestCommands.CalibrateORP;
+//				break;
+//			case R.id.command_button_calibrate_salinity:
+//				s = RequestCommands.CalibrateSalinity;
+//				break;
+//			case R.id.command_button_calibrate_water:
+//				s = RequestCommands.CalibrateWaterLevel;
+//				break;
+			case R.id.command_button_version:
+				action = MessageCommands.VERSION_QUERY_INTENT;
+				s = RequestCommands.Version;
 		}
-		i.setAction( MessageCommands.COMMAND_SEND_INTENT );
+		i.setAction( action );
 		i.putExtra( MessageCommands.COMMAND_SEND_STRING, s );
 		ctx.startService( i );
 	}

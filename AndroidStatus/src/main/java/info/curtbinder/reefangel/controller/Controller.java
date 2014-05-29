@@ -10,7 +10,7 @@ package info.curtbinder.reefangel.controller;
  */
 
 public class Controller {
-	public static final byte MAX_CONTROLLER_VALUES = 12;
+	public static final byte MAX_CONTROLLER_VALUES = 17;
 	public static final byte MAX_EXPANSION_RELAYS = 8;
 	public static final byte MAX_RELAY_PORTS = 8;
 	public static final byte MAX_TEMP_SENSORS = 3;
@@ -20,7 +20,9 @@ public class Controller {
 	public static final byte MAX_IO_CHANNELS = 6;
 	public static final byte MAX_RADION_LIGHT_CHANNELS = 6;
 	public static final byte MAX_VORTECH_VALUES = 3;
+	public static final byte MAX_WATERLEVEL_PORTS = 5;
 
+	// First set of expansion modules - EM
 	public static final short MODULE_DIMMING = 1 << 0;
 	public static final short MODULE_RF = 1 << 1;
 	public static final short MODULE_AI = 1 << 2;
@@ -29,6 +31,11 @@ public class Controller {
 	public static final short MODULE_IO = 1 << 5;
 	public static final short MODULE_PHEXPANSION = 1 << 6;
 	public static final short MODULE_WATERLEVEL = 1 << 7;
+	
+	// Second set of expansion modules - EM1
+	public static final short MODULE_HUMIDITY = 1 << 0;
+	public static final short MODULE_DCPUMP = 1 << 1;
+	public static final short MODULE_LEAKDETECTOR = 1 << 2;
 
 	// AI channels
 	public static final byte AI_WHITE = 0;
@@ -56,13 +63,15 @@ public class Controller {
 	private boolean atoHigh;
 	private ShortWithLabel pwmA;
 	private ShortWithLabel pwmD;
-	private ShortWithLabel waterlevel;
+	private ShortWithLabel[] waterlevel;
+	private ShortWithLabel humidity;
 	private NumberWithLabel salinity;
 	private NumberWithLabel orp;
 	private Relay main;
 	private byte qtyExpansionRelays;
 	private Relay[] expansionRelays;
 	private short expansionModules;
+	private short expansionModules1;
 	private short relayExpansionModules;
 	private short ioChannels;
 	private String[] ioChannelsLabels;
@@ -98,7 +107,11 @@ public class Controller {
 		for ( i = 0; i < MAX_PWM_EXPANSION_PORTS; i++ ) {
 			pwmExpansion[i] = new ShortWithLabel();
 		}
-		waterlevel = new ShortWithLabel();
+		waterlevel = new ShortWithLabel[MAX_WATERLEVEL_PORTS];
+		for ( i = 0; i < MAX_WATERLEVEL_PORTS; i++ ) {
+			waterlevel[i] = new ShortWithLabel();
+		}
+		humidity = new ShortWithLabel();
 		salinity = new NumberWithLabel( (byte) 1 );
 		orp = new NumberWithLabel();
 		main = new Relay();
@@ -108,6 +121,7 @@ public class Controller {
 		}
 		qtyExpansionRelays = 0;
 		expansionModules = 0;
+		expansionModules1 = 0;
 		relayExpansionModules = 0;
 		ioChannels = 0;
 		ioChannelsLabels = new String[MAX_IO_CHANNELS];
@@ -292,22 +306,38 @@ public class Controller {
 		return pwmExpansion[channel].getLabel();
 	}
 
-	public void setWaterLevel ( short value ) {
-		waterlevel.setData( value );
+	public void setWaterLevel ( short port, short value ) {
+		waterlevel[port].setData( value );;
+	}
+	
+	public short getWaterLevel ( short port ) {
+		return waterlevel[port].getData();
+	}
+	
+	public void setWaterLevelLabel ( short port, String label ) {
+		waterlevel[port].setLabel( label );
+	}
+	
+	public String getWaterLevelLabel ( short port ) {
+		return waterlevel[port].getLabel();
 	}
 
-	public short getWaterLevel ( ) {
-		return waterlevel.getData();
+	public void setHumidity ( short value ) {
+		humidity.setData( value );
 	}
-
-	public void setWaterLevelLabel ( String label ) {
-		waterlevel.setLabel( label );
+	
+	public short getHumidity ( ) {
+		return humidity.getData();
 	}
-
-	public String getWaterLevelLabel ( ) {
-		return waterlevel.getLabel();
+	
+	public void setHumidityLabel ( String label ) {
+		humidity.setLabel( label );
 	}
-
+	
+	public String getHumidityLabel ( ) {
+		return humidity.getLabel();
+	}
+	
 	public void setSalinity ( int value ) {
 		salinity.setData( value );
 	}
@@ -432,6 +462,14 @@ public class Controller {
 		expansionModules = em;
 	}
 
+	public short getExpansionModules1 ( ) {
+		return expansionModules1;
+	}
+	
+	public void setExpansionModules1 ( short em1 ) {
+		expansionModules1 = em1;
+	}
+	
 	public static boolean isDimmingModuleInstalled ( short expansionModules ) {
 		return (expansionModules & MODULE_DIMMING) == MODULE_DIMMING;
 	}
@@ -462,6 +500,18 @@ public class Controller {
 
 	public static boolean isWaterLevelModuleInstalled ( short expansionModules ) {
 		return (expansionModules & MODULE_WATERLEVEL) == MODULE_WATERLEVEL;
+	}
+	
+	public static boolean isHumidityModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_HUMIDITY) == MODULE_HUMIDITY;
+	}
+	
+	public static boolean isDCPumpControlModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_DCPUMP) == MODULE_DCPUMP;
+	}
+	
+	public static boolean isLeakDetectorModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_LEAKDETECTOR) == MODULE_LEAKDETECTOR;
 	}
 
 	public short getRelayExpansionModules ( ) {
