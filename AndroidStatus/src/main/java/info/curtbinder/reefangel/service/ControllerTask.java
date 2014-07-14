@@ -12,6 +12,7 @@ import info.curtbinder.reefangel.controller.Controller;
 import info.curtbinder.reefangel.controller.Relay;
 import info.curtbinder.reefangel.db.StatusProvider;
 import info.curtbinder.reefangel.db.StatusTable;
+import info.curtbinder.reefangel.phone.Globals;
 import info.curtbinder.reefangel.phone.Permissions;
 import info.curtbinder.reefangel.phone.R;
 import info.curtbinder.reefangel.phone.RAApplication;
@@ -61,6 +62,12 @@ public class ControllerTask implements Runnable {
 		try {
 			URL url = new URL( host.toString() );
 			con = setupConnection(url);
+			if ( host.isDeviceAuthenticationEnabled() ) {
+				String basicAuth = "Basic " +
+					Base64.encodeBytes( host.getDeviceAuthenticationString().getBytes() );
+				Log.d(TAG, "Auth: " + basicAuth);
+				con.setRequestProperty( "Authorization", basicAuth );
+			}
 			broadcastUpdateStatus( R.string.statusConnect );
 			con.connect();
 
@@ -191,6 +198,12 @@ public class ControllerTask implements Runnable {
 		} else if ( host.getCommand().equals( RequestCommands.Reboot ) ) {
 			broadcastCommandResponse(	R.string.labelReboot,
 										xml.getModeResponse() );
+		} else if ( host.getCommand().equals( RequestCommands.Calibrate ) ) {
+			broadcastCalibrateResponse(getCalibrateResponseMessage(host.getCalibrateType()),
+			                         xml.getModeResponse());
+		} else if ( host.getCommand().equals( RequestCommands.PwmOverride ) ) {
+			broadcastOverrideResponse( host.getOverrideChannel(), 
+			                          xml.getModeResponse() );
 		} else if ( host.getCommand().equals( RequestCommands.Version ) ) {
 			Intent i = new Intent( MessageCommands.VERSION_RESPONSE_INTENT );
 			i.putExtra( MessageCommands.VERSION_RESPONSE_STRING,
@@ -209,16 +222,57 @@ public class ControllerTask implements Runnable {
 		}
 	}
 
+	private String getCalibrateResponseMessage ( int location ) {
+		int id;
+		switch ( location ) {
+			default:
+			case Globals.CALIBRATE_PH:
+				id = R.string.labelCalibratePH;
+				break;
+			case Globals.CALIBRATE_PHE:
+				id = R.string.labelCalibratePHExp;
+				break;
+			case Globals.CALIBRATE_ORP:
+				id = R.string.labelCalibrateORP;
+				break;
+			case Globals.CALIBRATE_SALINITY:
+				id = R.string.labelCalibrateSalinity;
+				break;
+			case Globals.CALIBRATE_WATERLEVEL:
+				id = R.string.labelCalibrateWaterLevel;
+				break;
+		}
+		return rapp.getString(id);
+	}
+	
+	private void broadcastCalibrateResponse ( String msg, String response ) {
+		msg += rapp.getString( R.string.labelSeparator );
+		Log.d(	TAG, msg + " " + response );
+		Intent i = new Intent( MessageCommands.CALIBRATE_RESPONSE_INTENT );
+		i.putExtra( MessageCommands.CALIBRATE_RESPONSE_STRING,
+					msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );	
+	}
+	
+	private void broadcastOverrideResponse ( int channel, String response ) {
+		// get channel name
+		// create response -  channel: MESSAGE
+		String msg = rapp.getPWMOverrideChannelName( channel ) 
+				+ rapp.getString( R.string.labelSeparator );
+		Log.d( TAG, msg + " " + response );
+		Intent i = new Intent( MessageCommands.OVERRIDE_RESPONSE_INTENT );
+		i.putExtra( MessageCommands.OVERRIDE_RESPONSE_STRING, 
+		            msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );
+	}
+	
 	private void broadcastCommandResponse ( int id, String response ) {
-		Log.d(	TAG,
-				rapp.getString( id ) + rapp.getString( R.string.labelSeparator )
-						+ " " + response );
+		String msg = rapp.getString( id ) + rapp.getString( R.string.labelSeparator );
+		Log.d(	TAG, msg + " " + response );
 		Intent i = new Intent( MessageCommands.COMMAND_RESPONSE_INTENT );
 		i.putExtra( MessageCommands.COMMAND_RESPONSE_STRING,
-					rapp.getString( id )
-							+ rapp.getString( R.string.labelSeparator ) + " "
-							+ response );
-		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );
+					msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );	
 	}
 
 	// FIXME improve preference saving
@@ -384,6 +438,25 @@ public class ControllerTask implements Runnable {
 		v.put( StatusTable.COL_WL3, ra.getWaterLevel( (short) 3) );
 		v.put( StatusTable.COL_WL4, ra.getWaterLevel( (short) 4) );
 		v.put( StatusTable.COL_HUM, ra.getHumidity() );
+		v.put( StatusTable.COL_PWMAO, ra.getPwmAOverride() );
+		v.put( StatusTable.COL_PWMDO, ra.getPwmDOverride() );
+		v.put( StatusTable.COL_PWME0O, ra.getPwmExpansionOverride( (short) 0 ) );
+		v.put( StatusTable.COL_PWME1O, ra.getPwmExpansionOverride( (short) 1 ) );
+		v.put( StatusTable.COL_PWME2O, ra.getPwmExpansionOverride( (short) 2 ) );
+		v.put( StatusTable.COL_PWME3O, ra.getPwmExpansionOverride( (short) 3 ) );
+		v.put( StatusTable.COL_PWME4O, ra.getPwmExpansionOverride( (short) 4 ) );
+		v.put( StatusTable.COL_PWME5O, ra.getPwmExpansionOverride( (short) 5 ) );
+		v.put( StatusTable.COL_AIWO, ra.getAIChannelOverride( Controller.AI_WHITE ) );
+		v.put( StatusTable.COL_AIBO, ra.getAIChannelOverride( Controller.AI_BLUE ) );
+		v.put( StatusTable.COL_AIRBO, ra.getAIChannelOverride( Controller.AI_ROYALBLUE ) );
+		v.put( StatusTable.COL_RFWO, ra.getRadionChannelOverride( Controller.RADION_WHITE ) );
+		v.put( StatusTable.COL_RFRBO, ra.getRadionChannelOverride( Controller.RADION_ROYALBLUE ) );
+		v.put( StatusTable.COL_RFRO, ra.getRadionChannelOverride( Controller.RADION_RED ) );
+		v.put( StatusTable.COL_RFGO, ra.getRadionChannelOverride( Controller.RADION_GREEN ) );
+		v.put( StatusTable.COL_RFBO, ra.getRadionChannelOverride( Controller.RADION_BLUE ) );
+		v.put( StatusTable.COL_RFIO, ra.getRadionChannelOverride( Controller.RADION_INTENSITY ) );
+		v.put( StatusTable.COL_SF, ra.getStatusFlags() );
+		v.put( StatusTable.COL_AF, ra.getAlertFlags() );
 		rapp.getContentResolver()
 				.insert(	Uri.parse( StatusProvider.CONTENT_URI + "/"
 										+ StatusProvider.PATH_STATUS ), v );

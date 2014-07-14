@@ -10,7 +10,7 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
 <resources>
 
     <string name="app_name">Reef Angel Status</string>
-    <string name="app_version">0.9.4</string>
+    <string name="app_version">0.9.6 - Beta 1</string>
 
     <!-- Menu Labels -->
     <string name="menuMainRefresh">Refresh</string>
@@ -40,6 +40,10 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
     <string name="titleNotifications">Notifications</string>
     <string name="titleCreateNotification">Create Notification</string>
     <string name="titleUpdateNotification">Update Notification</string>
+    <string name="titleOverride">PWM Override</string>
+    <string name="titleFlags">Flags</string>
+    <string name="titleAlert">Alert Flags</string>
+    <string name="titleStatus">Status Flags</string>
 
     <!-- Tabs for memory page -->
     <string name="tabMemory1">memory_tab_1</string>
@@ -97,6 +101,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="buttonAdd">Add</string>
     <string name="buttonDelete">Delete</string>
     <string name="buttonSave">Save</string>
+    <string name="buttonClear">Clear</string>
+    <string name="buttonSet">Set</string>
     <string name="radioByte">Byte</string>
     <string name="radioInt">Int</string>
 
@@ -167,8 +173,13 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="labelCalibrateORP">Calibrate ORP</string>
     <string name="labelCalibratePHExp">Calibrate PH Exp</string>
     <string name="labelCalibrateWaterLevel">Calibrate Water Level</string>
+    <string name="labelPwmOverride">PWM Override</string>
     <string name="labelParameter">Parameter:</string>
     <string name="labelCondition">Condition:</string>
+    <string name="labelAtoTimeout">ATO Timeout</string>
+    <string name="labelOverheatTimeout">Overheat Timeout</string>
+    <string name="labelBusLock">Bus Lock</string>
+    <string name="labelLeak">Leak</string>
     <string name="websiteReefangel">http://www.reefangel.com/</string>
     <string name="forumReefangel">http://forum.reefangel.com/</string>
     <string name="defaultStatusText">-</string>
@@ -214,6 +225,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="messageMoreErrors">+%1$d more</string>
     <string name="messageGBMoreErrorss">%1$s - %2$d errors</string>
     <string name="messageUnsupported">Unsupported command</string>
+    <string name="messagePWMPopupCustom">%1$s (%2$s)</string>
 
     <!-- Status strings -->
     <string name="statusStart">Starting update</string>
@@ -226,6 +238,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="statusParsing">Parsing</string>
     <string name="statusFinished">Finished</string>
     <string name="statusRefreshNeeded">Refresh to update screen</string>
+    <string name="statusWaiting">Waiting to update...</string>
 
     <!-- Settings / Preference Labels -->
     <string name="prefsCategoryDevice">Device</string>
@@ -264,6 +277,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefUserIdSummary">Userid / login for the portal</string>
     <string name="prefUserIdDefault">reefangel</string>
     <string name="prefUserIdInvalid">Invalid userid</string>
+    <string name="prefWifiUserTitle">Wifi Username</string>
+    <string name="prefWifiUserSummary">Username for basic authentication on the controller (libraries v1.1.1 and later)</string>
+    <string name="prefWifiPasswordTitle">Wifi Password</string>
+    <string name="prefWifiPasswordSummary">Password for basic authentication on the controller (libraries v1.1.1 and later)</string>
     <string name="prefAppTitle">Info</string>
     <string name="prefVersionTitle">Version</string>
     <string name="prefAuthorTitle">Author</string>
@@ -387,6 +404,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefConnectionTimeoutDefault">15000</string>
     <string name="prefReadTimeoutTitle">Read Timeout</string>
     <string name="prefReadTimeoutDefault">10000</string>
+    <string name="prefAutoRefreshAfterUpdateTitle">Auto refresh after commands</string>
+    <string name="prefAutoRefreshAfterUpdateSummary">Automatically refresh the status after issuing a command or pwm override</string>
 
     <!-- Preference Keys -->
     <string name="prefFirstRunKey">firstrun</string>
@@ -398,6 +417,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefPortAwayKey">portaway</string>
     <string name="prefProfileSelectedKey">profileselected</string>
     <string name="prefUserIdKey">userid</string>
+    <string name="prefWifiUserKey">wifi_username</string>
+    <string name="prefWifiPasswordKey">wifi_password</string>
     <string name="prefChangelogKey">changelog</string>
     <string name="prefT2VisibilityKey">t2_visibility</string>
     <string name="prefT3VisibilityKey">t3_visibility</string>
@@ -562,6 +583,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefLoggingSendKey">logging_send</string>
     <string name="prefConnectionTimeoutKey">connection_timeout</string>
     <string name="prefReadTimeoutKey">read_timeout</string>
+    <string name="prefAutoRefreshAfterUpdateKey">auto_refresh_update</string>
 
     <!-- Permissions -->
     <string name="permissionQueryStatusLabel">Query status of controller</string>

@@ -140,6 +140,8 @@ public class XMLHandler extends DefaultHandler {
 
 		} else if ( requestType.equals( RequestCommands.Version ) ) {
 			processVersionXml( tag );
+		} else if ( requestType.equals( RequestCommands.PwmOverride ) ) {
+			processPWMOverrideResponseXml( tag );
 		} else if ( requestType.equals( RequestCommands.ExitMode ) ) {
 			processModeXml( tag );
 		} else {
@@ -179,7 +181,10 @@ public class XMLHandler extends DefaultHandler {
 			} else if ( tag.startsWith( XMLTags.MemorySingle ) ) {
 				// can be either type, just chose to use Bytes
 				requestType = RequestCommands.MemoryByte;
+			} else if ( tag.startsWith( XMLTags.PWMOverrideResponse ) ) {
+				requestType = RequestCommands.PwmOverride;
 			} else {
+				Log.d(TAG, "startElement: (Unknown): " + tag );
 				requestType = RequestCommands.None;
 			}
 		}
@@ -288,9 +293,7 @@ public class XMLHandler extends DefaultHandler {
 		} else if ( tag.equals( XMLTags.IO ) ) {
 			ra.setIOChannels( Short.parseShort( currentElementText ) );
 		} else if ( tag.endsWith( XMLTags.Override ) ) {
-			// FIXME Handle Override Tags
-			Log.d( TAG, "Unhandled Override tag (" + tag + ") with data: "
-					+ currentElementText );
+			processPwmOverride(tag, currentElementText);
 		} else if ( tag.startsWith( XMLTags.Custom ) ) {
 			short v =
 					Short.parseShort( tag.substring( XMLTags.Custom.length() ) );
@@ -301,6 +304,10 @@ public class XMLHandler extends DefaultHandler {
 			short p = Short.parseShort( tag.substring( XMLTags.WaterLevel.length() ) );
 			short v = Short.parseShort( currentElementText );
 			ra.setWaterLevel( p, v );
+		} else if ( tag.equals( XMLTags.StatusFlags ) ) {
+			ra.setStatusFlags( Short.parseShort(currentElementText) );
+		} else if ( tag.equals( XMLTags.AlertFlags ) ) {
+			ra.setAlertFlags( Short.parseShort(currentElementText) );
 		} else if ( tag.startsWith( XMLTags.RelayMaskOn ) ) {
 			int relay =
 					Integer.parseInt( tag.substring( XMLTags.RelayMaskOn
@@ -339,6 +346,39 @@ public class XMLHandler extends DefaultHandler {
 		return tag.substring( bp, ep );
 	}
 
+	private void processPwmOverride ( String tag, String element ) {
+//		Log.d( TAG, "Override tag (" + tag + ") with data: " + element );
+		Short value = Short.parseShort( element );
+		if ( tag.startsWith( XMLTags.PWMActinic ) ) {
+			ra.setPwmAOverride( value );
+		} else if ( tag.startsWith( XMLTags.PWMDaylight ) ) {
+			ra.setPwmDOverride( value );
+		} else if ( tag.startsWith( XMLTags.PWMExpansion ) ) {
+			// Get the channel from the tag. The last char is an O.
+			Short channel = Short.parseShort( tag.substring(
+			                                  XMLTags.PWMExpansion.length(), tag.length()-1) );
+			ra.setPwmExpansionOverride( channel, value );
+		} else if ( tag.startsWith( XMLTags.AIWhite ) ) {
+			ra.setAIChannel( Controller.AI_WHITE, value );
+		} else if ( tag.startsWith( XMLTags.AIBlue ) ) {
+			ra.setAIChannel( Controller.AI_BLUE, value );
+		} else if ( tag.startsWith( XMLTags.AIRoyalBlue ) ) {
+			ra.setAIChannel( Controller.AI_ROYALBLUE, value );
+		} else if ( tag.startsWith( XMLTags.RFWhite ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_WHITE, value );
+		} else if ( tag.startsWith( XMLTags.RFRoyalBlue ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_ROYALBLUE, value );
+		} else if ( tag.startsWith( XMLTags.RFRed ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_RED, value );
+		} else if ( tag.startsWith( XMLTags.RFGreen ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_GREEN, value );
+		} else if ( tag.startsWith( XMLTags.RFBlue ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_BLUE, value );
+		} else if ( tag.startsWith( XMLTags.RFIntensity ) ) {
+			ra.setRadionChannelOverride( Controller.RADION_INTENSITY, value );
+		}
+	}
+	
 	private void processLabelXml ( String tag ) {
 		// Handle all labels here
 		if ( currentElementText.equals( "null" ) ) {
@@ -458,6 +498,13 @@ public class XMLHandler extends DefaultHandler {
 		// Responses will be either: OK, value, ERR
 		if ( tag.startsWith( XMLTags.MemorySingle ) ) {
 			memoryResponse = currentElementText;
+		}
+	}
+	
+	private void processPWMOverrideResponseXml ( String tag ) {
+		// Responses will be either: OK or ERR
+		if ( tag.startsWith( XMLTags.PWMOverrideResponse ) ) {
+			modeResponse = currentElementText;
 		}
 	}
 

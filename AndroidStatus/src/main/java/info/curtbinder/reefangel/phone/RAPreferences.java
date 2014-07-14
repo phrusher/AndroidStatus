@@ -132,6 +132,10 @@ public class RAPreferences {
 		return Integer.parseInt( getString( R.string.prefReadTimeoutKey,
 											R.string.prefReadTimeoutDefault ) );
 	}
+	
+	public boolean isAutoRefreshAfterUpdate ( ) {
+		return getBoolean( R.string.prefAutoRefreshAfterUpdateKey, true );
+	}
 
 	// Automatic Updating
 	public long getUpdateInterval ( ) {
@@ -295,6 +299,22 @@ public class RAPreferences {
 
 	public void setUserId ( String userId ) {
 		set( R.string.prefUserIdKey, userId );
+	}
+	
+	public String getDeviceWifiUsername ( ) {
+		return getString( R.string.prefWifiUserKey, "" );
+	}
+	
+	public void setDeviceWifiUsername ( String username ) {
+		set( R.string.prefWifiUserKey, username );
+	}
+	
+	public String getDeviceWifiPassword ( ) {
+		return getString( R.string.prefWifiPasswordKey, "" );
+	}
+	
+	public void setDeviceWifiPassword ( String password ) {
+		set( R.string.prefWifiPasswordKey, password );
 	}
 
 	// Controller Information
@@ -530,31 +550,9 @@ public class RAPreferences {
 		return getString( k, v );
 	}
 
-	// FIXME improve function
 	public void setDimmingModuleChannelLabel ( int channel, String label ) {
-		int k;
-		switch ( channel ) {
-			default:
-			case 0:
-				k = R.string.prefExpDimmingCh0LabelKey;
-				break;
-			case 1:
-				k = R.string.prefExpDimmingCh1LabelKey;
-				break;
-			case 2:
-				k = R.string.prefExpDimmingCh2LabelKey;
-				break;
-			case 3:
-				k = R.string.prefExpDimmingCh3LabelKey;
-				break;
-			case 4:
-				k = R.string.prefExpDimmingCh4LabelKey;
-				break;
-			case 5:
-				k = R.string.prefExpDimmingCh5LabelKey;
-				break;
-		}
-		set( k, label );
+		String key = "exp_dim_" + channel;
+		set( key, label );
 	}
 
 	public boolean getRadionModuleEnabled ( ) {
@@ -606,31 +604,9 @@ public class RAPreferences {
 		return getString( k, v );
 	}
 
-	// FIXME improve function
 	public void setIOModuleChannelLabel ( int channel, String label ) {
-		int k;
-		switch ( channel ) {
-			default:
-			case 0:
-				k = R.string.prefExpIO0LabelKey;
-				break;
-			case 1:
-				k = R.string.prefExpIO1LabelKey;
-				break;
-			case 2:
-				k = R.string.prefExpIO2LabelKey;
-				break;
-			case 3:
-				k = R.string.prefExpIO3LabelKey;
-				break;
-			case 4:
-				k = R.string.prefExpIO4LabelKey;
-				break;
-			case 5:
-				k = R.string.prefExpIO5LabelKey;
-				break;
-		}
-		set( k, label );
+		String key = "exp_io_" + channel;
+		set( key, label );
 	}
 
 	public boolean getCustomModuleEnabled ( ) {
@@ -678,37 +654,9 @@ public class RAPreferences {
 		return getString( k, d );
 	}
 
-	// FIXME improve function
 	public void setCustomModuleChannelLabel ( int channel, String label ) {
-		int k;
-		switch ( channel ) {
-			default:
-			case 0:
-				k = R.string.prefExpCustom0LabelKey;
-				break;
-			case 1:
-				k = R.string.prefExpCustom1LabelKey;
-				break;
-			case 2:
-				k = R.string.prefExpCustom2LabelKey;
-				break;
-			case 3:
-				k = R.string.prefExpCustom3LabelKey;
-				break;
-			case 4:
-				k = R.string.prefExpCustom4LabelKey;
-				break;
-			case 5:
-				k = R.string.prefExpCustom5LabelKey;
-				break;
-			case 6:
-				k = R.string.prefExpCustom6LabelKey;
-				break;
-			case 7:
-				k = R.string.prefExpCustom7LabelKey;
-				break;
-		}
-		set( k, label );
+		String key = "exp_custom_" + channel;
+		set( key, label);
 	}
 
 	private String getRelayControlEnabledKey ( int relay, int port ) {

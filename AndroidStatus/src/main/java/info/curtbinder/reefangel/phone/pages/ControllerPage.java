@@ -9,16 +9,19 @@
 package info.curtbinder.reefangel.phone.pages;
 
 import info.curtbinder.reefangel.controller.Controller;
+import info.curtbinder.reefangel.phone.Globals;
 import info.curtbinder.reefangel.phone.R;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnLongClickListener;
 import android.widget.TableRow;
 import android.widget.TextView;
 
-public class ControllerPage extends RAPage {
+public class ControllerPage extends RAPage
+	implements OnLongClickListener {
 	private static final String TAG = ControllerPage.class.getSimpleName();
 
 	public static final int T1_INDEX = 0;
@@ -45,6 +48,8 @@ public class ControllerPage extends RAPage {
 	private TableRow[] deviceRow =
 			new TableRow[Controller.MAX_CONTROLLER_VALUES];
 	private int[] colors = new int[Controller.MAX_CONTROLLER_VALUES];
+	private short dpValue;
+	private short apValue;
 
 	public ControllerPage ( Context context ) {
 		super( context );
@@ -108,7 +113,11 @@ public class ControllerPage extends RAPage {
 					(TextView) deviceRow[i].findViewById( R.id.rowValue );
 			deviceText[i].setTextColor( colors[i] );
 		}
-
+		
+		deviceText[AP_INDEX].setLongClickable( true );
+		deviceText[AP_INDEX].setOnLongClickListener( this );
+		deviceText[DP_INDEX].setLongClickable( true );
+		deviceText[DP_INDEX].setOnLongClickListener( this );
 	}
 
 	public void setLabel ( int device, String title, String subtitle ) {
@@ -153,10 +162,27 @@ public class ControllerPage extends RAPage {
 		deviceText[WL4_INDEX].setText( v[WL4_INDEX] );
 		deviceText[HUMIDITY_INDEX].setText( v[HUMIDITY_INDEX] );
 	}
+	
+	public void updatePWMValues ( short ap, short dp ) {
+		apValue = ap;
+		dpValue = dp;
+	}
 
 	@Override
 	public String getPageTitle ( ) {
-		return ctx.getResources().getString( R.string.labelController );
+		return ctx.getString( R.string.labelController );
 	}
 
+	@Override
+	public boolean onLongClick ( View v ) {
+		View parent = (View) v.getParent();
+		if ( parent.getId() == R.id.dp_row ) {
+			displayOverridePopup(Globals.OVERRIDE_DAYLIGHT, dpValue); 
+		} else if ( parent.getId() == R.id.ap_row ) {
+			displayOverridePopup(Globals.OVERRIDE_ACTINIC, apValue);
+		} else {
+			return false;
+		}
+		return true;
+	}
 }

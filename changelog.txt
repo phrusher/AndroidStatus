@@ -205,3 +205,15 @@ Changelog of all the versions of AndroidStatus
  * added humidity expansion
  * code cleanup
  
+0.9.5
+ * added in pwm override control
+ * added in calibration commands
+ * added in flags page to display Status and Alert flags
+ * added in auto refresh after a command or pwm override update
+ * improved Vortech popup
+ ** shows a slider for speed and duration
+ ** popup starts with current values instead of defaulting to 0
+ * code cleanup
+ 
+0.9.6
+ * added in basic webserver authentication mechanism for v1.1.1 libraries

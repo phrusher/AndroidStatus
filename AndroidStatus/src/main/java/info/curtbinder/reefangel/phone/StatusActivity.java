@@ -17,6 +17,7 @@ import info.curtbinder.reefangel.phone.pages.CommandsPage;
 import info.curtbinder.reefangel.phone.pages.ControllerPage;
 import info.curtbinder.reefangel.phone.pages.CustomPage;
 import info.curtbinder.reefangel.phone.pages.DimmingPage;
+import info.curtbinder.reefangel.phone.pages.FlagsPage;
 import info.curtbinder.reefangel.phone.pages.IOPage;
 import info.curtbinder.reefangel.phone.pages.RAPage;
 import info.curtbinder.reefangel.phone.pages.RadionPage;
@@ -35,6 +36,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
@@ -64,13 +66,14 @@ public class StatusActivity extends BaseActivity implements
 	private CustomPagerAdapter pagerAdapter;
 	private String[] vortechModes;
 	private View[] appPages;
-	// minimum number of pages: status, main relay
-	private static final int MIN_PAGES = 3;
+	// minimum number of pages: commands, flags, status, main relay
+	private static final int MIN_PAGES = 4;
 
 	private static final int POS_START = 0;
 
 	private static final int POS_COMMANDS = POS_START;
-	private static final int POS_CONTROLLER = POS_START + 1;
+	private static final int POS_FLAGS = POS_START + 1;
+	private static final int POS_CONTROLLER = POS_START + 2;
 
 	private static final int POS_MODULES = POS_CONTROLLER + 10;
 	private static final int POS_DIMMING = POS_MODULES;
@@ -93,6 +96,7 @@ public class StatusActivity extends BaseActivity implements
 	private static final int POS_END = POS_CUSTOM + 1;
 
 	private CommandsPage pageCommands;
+	private FlagsPage pageFlags;
 	private ControllerPage pageController;
 	private DimmingPage pageDimming;
 	private RadionPage pageRadion;
@@ -119,10 +123,13 @@ public class StatusActivity extends BaseActivity implements
 		filter = new IntentFilter( MessageCommands.UPDATE_DISPLAY_DATA_INTENT );
 		filter.addAction( MessageCommands.UPDATE_STATUS_INTENT );
 		filter.addAction( MessageCommands.ERROR_MESSAGE_INTENT );
-		filter.addAction( MessageCommands.VORTECH_UPDATE_INTENT );
+		filter.addAction( MessageCommands.VORTECH_POPUP_INTENT );
 		filter.addAction( MessageCommands.MEMORY_RESPONSE_INTENT );
 		filter.addAction( MessageCommands.COMMAND_RESPONSE_INTENT );
 		filter.addAction( MessageCommands.VERSION_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.OVERRIDE_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.OVERRIDE_POPUP_INTENT );
+		filter.addAction( MessageCommands.CALIBRATE_RESPONSE_INTENT );
 
 		vortechModes =
 				getResources().getStringArray( R.array.vortechModeLabels );
@@ -202,6 +209,7 @@ public class StatusActivity extends BaseActivity implements
 	private void createViews ( ) {
 		Context ctx = rapp.getBaseContext();
 		pageCommands = new CommandsPage( ctx );
+		pageFlags = new FlagsPage( ctx );
 		pageController = new ControllerPage( ctx );
 		pageDimming = new DimmingPage( ctx );
 		pageRadion = new RadionPage( ctx );
@@ -431,19 +439,29 @@ public class StatusActivity extends BaseActivity implements
 		String[] ai;
 		String[] io;
 		String[] custom;
-		short r, ron, roff, newEM, newEM1, newREM;
+		short r, ron, roff, newEM, newEM1, newREM, apValue, dpValue, af, sf;
+		short[] pwmeValues = new short[Controller.MAX_PWM_EXPANSION_PORTS];
+		short[] radionValues = new short[Controller.MAX_RADION_LIGHT_CHANNELS];
+		short[] aiValues = new short[Controller.MAX_AI_CHANNELS];
 		short[] expr = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] expron = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] exproff = new short[Controller.MAX_EXPANSION_RELAYS];
+		short[] vtValues = new short[Controller.MAX_VORTECH_VALUES];
 
 		if ( c.moveToFirst() ) {
 			updateStatus =
 					c.getString( c.getColumnIndex( StatusTable.COL_LOGDATE ) );
 			values = getControllerValues( c );
-			pwme = getPWMEValues( c );
-			rf = getRadionValues( c );
-			vt = getVortechValues( c );
-			ai = getAIValues( c );
+			apValue = c.getShort( c.getColumnIndex( StatusTable.COL_AP ) );
+			dpValue = c.getShort( c.getColumnIndex(  StatusTable.COL_DP ) );
+			pwme = getPWMETextValues( c );
+			pwmeValues = getPWMEValues( c );
+			rf = getRadionTextValues( c );
+			radionValues = getRadionValues( c );
+			vt = getVortechTextValues( c );
+			vtValues = getVortechValues( c );
+			ai = getAITextValues( c );
+			aiValues = getAIValues( c );
 			io = getIOValues( c );
 			custom = getCustomValues( c );
 			r = c.getShort( c.getColumnIndex( StatusTable.COL_RDATA ) );
@@ -493,6 +511,8 @@ public class StatusActivity extends BaseActivity implements
 			newEM = c.getShort( c.getColumnIndex( StatusTable.COL_EM ) );
 			newEM1 = c.getShort( c.getColumnIndex( StatusTable.COL_EM1 ) );
 			newREM = c.getShort( c.getColumnIndex( StatusTable.COL_REM ) );
+			sf = c.getShort( c.getColumnIndex( StatusTable.COL_SF ) );
+			af = c.getShort( c.getColumnIndex( StatusTable.COL_AF ) );
 		} else {
 			updateStatus = getString( R.string.messageNever );
 			values = getNeverValues( Controller.MAX_CONTROLLER_VALUES );
@@ -502,19 +522,39 @@ public class StatusActivity extends BaseActivity implements
 			ai = getNeverValues( Controller.MAX_AI_CHANNELS );
 			io = getNeverValues( Controller.MAX_IO_CHANNELS );
 			custom = getNeverValues( Controller.MAX_CUSTOM_VARIABLES );
-			r = ron = roff = newEM = newEM1 = newREM = 0;
-			for ( int i = 0; i < Controller.MAX_EXPANSION_RELAYS; i++ ) {
+			r = ron = roff = newEM = newEM1 = newREM = apValue = dpValue = sf = af = 0;
+			int i;
+			for ( i = 0; i < Controller.MAX_EXPANSION_RELAYS; i++ ) {
 				expr[i] = expron[i] = exproff[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ ) {
+				pwmeValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_RADION_LIGHT_CHANNELS; i++ ) {
+				radionValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_AI_CHANNELS; i++ ) {
+				aiValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_VORTECH_VALUES; i++ ) {
+				vtValues[i] = 0;
 			}
 		}
 		c.close();
 		
 		updateTime.setText( updateStatus );
 		pageController.updateDisplay( values );
+		pageController.updatePWMValues( apValue, dpValue );
+		pageFlags.updateStatus( sf );
+		pageFlags.updateAlert( af );
 		pageDimming.updateDisplay( pwme );
+		pageDimming.updatePWMValues( pwmeValues );
 		pageRadion.updateDisplay( rf );
+		pageRadion.updatePWMValues( radionValues );
 		pageVortech.updateDisplay( vt );
+		pageVortech.updateValues( vtValues );
 		pageAI.updateDisplay( ai );
+		pageAI.updatePWMValues( aiValues );
 		pageIO.updateDisplay( io );
 		pageCustom.updateDisplay( custom );
 		boolean fUseMask = rapp.raprefs.isCommunicateController();
@@ -550,44 +590,84 @@ public class StatusActivity extends BaseActivity implements
 			} else if ( action
 					.equals( MessageCommands.UPDATE_DISPLAY_DATA_INTENT ) ) {
 				updateDisplay();
-			} else if ( action.equals( MessageCommands.VORTECH_UPDATE_INTENT ) ) {
-				int type =
-						intent.getIntExtra( MessageCommands.VORTECH_UPDATE_TYPE,
-											0 );
-				Intent i =
-						new Intent( StatusActivity.this,
+			} else if ( action.equals( MessageCommands.VORTECH_POPUP_INTENT ) ) {
+				int type = intent.getIntExtra( VortechPopupActivity.TYPE, 0 );
+				int value = intent.getIntExtra( VortechPopupActivity.VALUE, 0 );
+				Intent i = new Intent( StatusActivity.this,
 							VortechPopupActivity.class );
 				i.putExtra( VortechPopupActivity.TYPE, type );
+				i.putExtra( VortechPopupActivity.VALUE, value );
 				i.putExtra( Globals.PRE10_LOCATIONS,
 							rapp.raprefs.useOldPre10MemoryLocations() );
 				startActivity( i );
 			} else if ( action.equals( MessageCommands.MEMORY_RESPONSE_INTENT ) ) {
+				// for vortech responses
 				String response =
 						intent.getStringExtra( MessageCommands.MEMORY_RESPONSE_STRING );
-				if ( response.equals( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
-					Toast.makeText( StatusActivity.this, response,
-									Toast.LENGTH_LONG ).show();
-				}
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.OVERRIDE_RESPONSE_INTENT ) ) {
+				String response = intent.getStringExtra(MessageCommands.OVERRIDE_RESPONSE_STRING);
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.OVERRIDE_POPUP_INTENT ) ) {
+				// message to display the popup
+				int channel = intent.getIntExtra( OverridePopupActivity.CHANNEL_KEY, 0);
+				String msg = rapp.getPWMOverrideMessageDisplay( channel );
+				Intent i = new Intent(StatusActivity.this, OverridePopupActivity.class);
+				i.putExtra( OverridePopupActivity.MESSAGE_KEY, msg ); 
+				i.putExtra( OverridePopupActivity.CHANNEL_KEY, channel);
+				i.putExtra( OverridePopupActivity.VALUE_KEY, 
+				            intent.getShortExtra( OverridePopupActivity.VALUE_KEY, (short) 0) );
+				startActivity(i);
 			} else if ( action.equals( MessageCommands.COMMAND_RESPONSE_INTENT ) ) {
 				String response =
 						intent.getStringExtra( MessageCommands.COMMAND_RESPONSE_STRING );
-				if ( response.contains( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
-					Toast.makeText( StatusActivity.this, response,
-									Toast.LENGTH_LONG ).show();
-				}
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.CALIBRATE_RESPONSE_INTENT ) ) {
+				String response =
+						intent.getStringExtra( MessageCommands.CALIBRATE_RESPONSE_STRING );
+				displayResponse(response, R.string.statusFinished, true );				
 			} else if ( action.equals( MessageCommands.VERSION_RESPONSE_INTENT ) ) {
 				// set the version button's text to the version of the software
 				((Button) findViewById( R.id.command_button_version ))
 				.setText( intent.getStringExtra( MessageCommands.VERSION_RESPONSE_STRING ) );
+				// TODO set the time to be the last updated time from the database
 				updateTime.setText( R.string.statusFinished );
 			}
 		}
 	}
-
+	
+	private void displayResponse ( String response, int stringId, boolean fAlwaysToast ) {
+		int msgId;
+		boolean fShowToast = false;
+		if ( stringId == -1 ) {
+			msgId = R.string.statusRefreshNeeded;
+		} else {
+			msgId = stringId;
+		}
+		if ( response.contains( XMLTags.Ok ) ) {
+			updateTime.setText( msgId );
+			if ( rapp.raprefs.isAutoRefreshAfterUpdate() ) {
+				updateTime.setText( R.string.statusWaiting );
+				Log.d(TAG, "AutoRefreshAfterUpdate");
+				Handler h = new Handler();
+				Runnable r = new Runnable() {
+					public void run() {
+						launchStatusTask();
+					}
+				};
+				// pause for a second before we proceed
+				h.postDelayed( r, 1000 );
+			}	
+		} else {
+			fShowToast = true;
+		}
+		
+		if ( fAlwaysToast || fShowToast ) {
+			Toast.makeText( StatusActivity.this, response,
+							Toast.LENGTH_LONG ).show();
+		}
+	}
+	
 	private String[] getNeverValues ( int qty ) {
 		String[] s = new String[qty];
 		for ( int i = 0; i < qty; i++ ) {
@@ -608,6 +688,10 @@ public class StatusActivity extends BaseActivity implements
 			h = getString( R.string.labelON ); // ACTIVE, GREEN, ON
 		else
 			h = getString( R.string.labelOFF ); // INACTIVE, RED, OFF
+		String apText = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AP) ),
+		                                               c.getShort( c.getColumnIndex(StatusTable.COL_PWMAO)));
+		String dpText = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_DP) ),
+		                                               c.getShort( c.getColumnIndex(StatusTable.COL_PWMDO)));
 		return new String[] {	c.getString( c
 										.getColumnIndex( StatusTable.COL_T1 ) ),
 								c.getString( c
@@ -616,12 +700,8 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_T3 ) ),
 								c.getString( c
 										.getColumnIndex( StatusTable.COL_PH ) ),
-								c.getString( c
-										.getColumnIndex( StatusTable.COL_DP ) )
-										+ "%",
-								c.getString( c
-										.getColumnIndex( StatusTable.COL_AP ) )
-										+ "%",
+								dpText,
+								apText,
 								l,
 								h,
 								c.getString( c
@@ -651,29 +731,63 @@ public class StatusActivity extends BaseActivity implements
 								        + "%" };
 	}
 
-	private String[] getPWMEValues ( Cursor c ) {
+	private String[] getPWMETextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_PWM_EXPANSION_PORTS];
-		sa[0] = c.getString( c.getColumnIndex( StatusTable.COL_PWME0 ) ) + "%";
-		sa[1] = c.getString( c.getColumnIndex( StatusTable.COL_PWME1 ) ) + "%";
-		sa[2] = c.getString( c.getColumnIndex( StatusTable.COL_PWME2 ) ) + "%";
-		sa[3] = c.getString( c.getColumnIndex( StatusTable.COL_PWME3 ) ) + "%";
-		sa[4] = c.getString( c.getColumnIndex( StatusTable.COL_PWME4 ) ) + "%";
-		sa[5] = c.getString( c.getColumnIndex( StatusTable.COL_PWME5 ) ) + "%";
+		sa[0] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME0) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME0O)));
+		sa[1] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME1) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME1O)));
+		sa[2] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME2) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME2O)));
+		sa[3] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME3) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME3O)));
+		sa[4] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME4) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME4O)));
+		sa[5] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME5) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_PWME5O)));
 		return sa;
 	}
+	
+	private short[] getPWMEValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_PWM_EXPANSION_PORTS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME0) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME1) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME2) );
+		v[3] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME3) );
+		v[4] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME4) );
+		v[5] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME5) );
+		return v;
+	}
 
-	private String[] getRadionValues ( Cursor c ) {
+	private String[] getRadionTextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_RADION_LIGHT_CHANNELS];
-		sa[0] = c.getString( c.getColumnIndex( StatusTable.COL_RFW ) ) + "%";
-		sa[1] = c.getString( c.getColumnIndex( StatusTable.COL_RFRB ) ) + "%";
-		sa[2] = c.getString( c.getColumnIndex( StatusTable.COL_RFR ) ) + "%";
-		sa[3] = c.getString( c.getColumnIndex( StatusTable.COL_RFG ) ) + "%";
-		sa[4] = c.getString( c.getColumnIndex( StatusTable.COL_RFB ) ) + "%";
-		sa[5] = c.getString( c.getColumnIndex( StatusTable.COL_RFI ) ) + "%";
+		sa[0] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFW) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFWO)));
+		sa[1] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFRB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFRBO)));
+		sa[2] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFR) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFRO)));
+		sa[3] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFG) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFGO)));
+		sa[4] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFBO)));
+		sa[5] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFI) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_RFIO)));
 		return sa;
 	}
+	
+	private short[] getRadionValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_RADION_LIGHT_CHANNELS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_RFW) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_RFRB) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_RFR) );
+		v[3] = c.getShort( c.getColumnIndex(StatusTable.COL_RFG) );
+		v[4] = c.getShort( c.getColumnIndex(StatusTable.COL_RFB) );
+		v[5] = c.getShort( c.getColumnIndex(StatusTable.COL_RFI) );
+		return v;
+	}
 
-	private String[] getVortechValues ( Cursor c ) {
+	private String[] getVortechTextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_VORTECH_VALUES];
 		String s = "";
 		int v, mode;
@@ -713,16 +827,32 @@ public class StatusActivity extends BaseActivity implements
 		sa[Controller.VORTECH_DURATION] = s;
 		return sa;
 	}
+	
+	private short[] getVortechValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_VORTECH_VALUES];
+		v[Controller.VORTECH_MODE] = c.getShort( c.getColumnIndex( StatusTable.COL_RFM ) );
+		v[Controller.VORTECH_SPEED] = c.getShort( c.getColumnIndex( StatusTable.COL_RFS ) );
+		v[Controller.VORTECH_DURATION] = c.getShort( c.getColumnIndex( StatusTable.COL_RFD ) );
+		return v;
+	}
 
-	private String[] getAIValues ( Cursor c ) {
+	private String[] getAITextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_AI_CHANNELS];
-		sa[Controller.AI_WHITE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIW ) ) + "%";
-		sa[Controller.AI_BLUE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIB ) ) + "%";
-		sa[Controller.AI_ROYALBLUE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIRB ) ) + "%";
+		sa[Controller.AI_WHITE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIW) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIWO)));
+		sa[Controller.AI_BLUE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIBO)));
+		sa[Controller.AI_ROYALBLUE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIRB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIRBO)));
 		return sa;
+	}
+	
+	private short[] getAIValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_AI_CHANNELS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_AIW) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_AIB) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_AIRB) );
+		return v;
 	}
 
 	private String[] getIOValues ( Cursor c ) {
@@ -973,6 +1103,10 @@ public class StatusActivity extends BaseActivity implements
 				case POS_COMMANDS:
 					// Log.d( TAG, j + ": Commands" );
 					appPages[j] = pageCommands;
+					j++;
+					break;
+				case POS_FLAGS:
+					appPages[j] = pageFlags;
 					j++;
 					break;
 				case POS_CONTROLLER:
