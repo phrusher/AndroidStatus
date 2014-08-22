@@ -11,9 +11,7 @@ package info.curtbinder.reefangel.phone;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.ListFragment;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
-
 
 public class FragmentListActivity extends ActionBarActivity {
 
@@ -28,9 +26,6 @@ public class FragmentListActivity extends ActionBarActivity {
 	public void onCreate ( Bundle savedInstanceState ) {
 		super.onCreate( savedInstanceState );
 
-		final ActionBar ab = getSupportActionBar();
-		ab.setDisplayShowTitleEnabled( true );
-		
 		FragmentManager fm = getSupportFragmentManager();
 		frag = getIntent().getIntExtra( FRAG_TYPE, HISTORY );
 

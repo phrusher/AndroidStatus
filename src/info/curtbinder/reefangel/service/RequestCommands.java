@@ -25,6 +25,8 @@ public final class RequestCommands {
 	public static final String LightsOn = "/l1";
 	public static final String LightsOff = "/l0";
 	public static final String Reboot = "/boot";
+	public static final String Calibrate = "/cal";
+	public static final String PwmOverride = "/po";
 	public static final String None = "";
 	public static final String ReefAngel = "ra";
 }

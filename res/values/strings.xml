@@ -10,7 +10,7 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
 <resources>
 
     <string name="app_name">Reef Angel Status</string>
-    <string name="app_version">0.9.3</string>
+    <string name="app_version">1.0</string>
 
     <!-- Menu Labels -->
     <string name="menuMainRefresh">Refresh</string>
@@ -35,11 +35,16 @@ http://creativecommons.org/licenses/by-nc-sa/3.0/
     <string name="titleDateTime">Date / Time</string>
     <string name="titleSelectProfile">Select Profile</string>
     <string name="titleChangelog">Changelog</string>
+    <string name="titleErrorlog">Error Log File</string>
     <string name="titleVortech">Vortech Config</string>
     <string name="titleError">Errors History</string>
     <string name="titleNotifications">Notifications</string>
     <string name="titleCreateNotification">Create Notification</string>
     <string name="titleUpdateNotification">Update Notification</string>
+    <string name="titleOverride">PWM Override</string>
+    <string name="titleFlags">Flags</string>
+    <string name="titleAlert">Alert Flags</string>
+    <string name="titleStatus">Status Flags</string>
 
     <!-- Tabs for memory page -->
     <string name="tabMemory1">memory_tab_1</string>
@@ -60,9 +65,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="descriptionModes">Feeding and Water Change buttons enter the appropriate modes. Press the Exit button to simulate a button press on the controller, which exits the modes.</string>
     <!-- First Run screen -->
     <string name="descriptionFirstRun">Before you begin, you must configure a few settings in order for the application to run properly.\n
-* Hostname (required): Enter the hostname or IP address of your controller.\n
-* Port (optional): Enter the port for the controller (leave blank if unknown or the default).\n
-* User ID (optional): Enter your username for the forum. This is to download your labels stored on the portal.</string>
+* Device: Select Portal or Controller\n
+* Hostname: Enter the hostname or IP address of your controller.\n
+* Port: Enter the port for the controller (leave blank if unknown or the default).\n
+* User ID: Enter your username for the forum. This is to download your labels and/or data from the portal.</string>
     <!-- Date and Time screen -->
     <string name="descriptionCurrentControllerTime">Press \'Get Time\' to retrieve the current date and time from the controller.  Press \'Set Current Time\' to set the date and time to match your device.</string>
     <string name="descriptionCustomControllerTime">You can enter a custom date and time. Use \'Change Time\' or \'Change Date\' to enter the custom date and time. Use \'Set Custom Time\' to set it.</string>
@@ -70,12 +76,16 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="descriptionSpeed">Change the Vortech Speed</string>
     <string name="descriptionDuration">Change the Vortech Duration</string>
 
+    <!-- Extra Connection Erros -->
+    <string name="errorAuthentication">Device Authentication Error, check your user/password settings.</string>
+    <string name="errorConnection">Error connecting to device</string>
+    
     <!-- Buttons -->
     <string name="buttonRefresh">Refresh</string>
     <string name="buttonOk">OK</string>
     <string name="buttonYes">Yes</string>
     <string name="buttonNo">No</string>
-    <string name="buttonVersion">Get Version</string>
+    <string name="buttonVersion">Get RA Version</string>
     <string name="buttonDateGet">Get Time</string>
     <string name="buttonDateSet">Set Current Time</string>
     <string name="buttonRead">Read Value</string>
@@ -96,6 +106,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="buttonAdd">Add</string>
     <string name="buttonDelete">Delete</string>
     <string name="buttonSave">Save</string>
+    <string name="buttonClear">Clear</string>
+    <string name="buttonSet">Set</string>
     <string name="radioByte">Byte</string>
     <string name="radioInt">Int</string>
 
@@ -113,6 +125,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="labelORP">ORP</string>
     <string name="labelPHExp">PH Exp</string>
     <string name="labelWaterLevel">Water</string>
+    <string name="labelHumidity">Humidity</string>
     <string name="labelAtoLow">ATO Low</string>
     <string name="labelAtoHigh">ATO High</string>
     <string name="labelPort1">Port 1</string>
@@ -160,8 +173,19 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="labelLightsOn">Lights On</string>
     <string name="labelLightsOff">Lights Off</string>
     <string name="labelReboot">Reboot</string>
+    <string name="labelCalibratePH">Calibrate PH</string>
+    <string name="labelCalibrateSalinity">Calibrate Salinity</string>
+    <string name="labelCalibrateORP">Calibrate ORP</string>
+    <string name="labelCalibratePHExp">Calibrate PH Exp</string>
+    <string name="labelCalibrateWaterLevel">Calibrate Water Level</string>
+    <string name="labelPwmOverride">PWM Override</string>
     <string name="labelParameter">Parameter:</string>
     <string name="labelCondition">Condition:</string>
+    <string name="labelAtoTimeout">ATO Timeout</string>
+    <string name="labelOverheatTimeout">Overheat Timeout</string>
+    <string name="labelBusLock">Bus Lock</string>
+    <string name="labelLeak">Leak</string>
+    <string name="labelSCDimming">16 Ch Dimming</string>
     <string name="websiteReefangel">http://www.reefangel.com/</string>
     <string name="forumReefangel">http://forum.reefangel.com/</string>
     <string name="defaultStatusText">-</string>
@@ -191,6 +215,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="messageDeleted">Deleted</string>
     <string name="messageNotController">Not a controller</string>
     <string name="messageResetLabelsPrompt">Reset all labels?</string>
+    <string name="messageResetLabelsBegin">Resetting labels…</string>
     <string name="messageResetLabelsComplete">Labels reset to default</string>
     <string name="messageResetEnabledPortsPrompt">Reset all enabled ports?</string>
     <string name="messageResetEanbledPortsComplete">All ports enabled</string>
@@ -207,6 +232,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="messageMoreErrors">+%1$d more</string>
     <string name="messageGBMoreErrorss">%1$s - %2$d errors</string>
     <string name="messageUnsupported">Unsupported command</string>
+    <string name="messagePWMPopupCustom">%1$s (%2$s)</string>
+    <string name="messageErrorTimeout">Timeout connecting to %1$s:%2$s</string>
 
     <!-- Status strings -->
     <string name="statusStart">Starting update</string>
@@ -219,6 +246,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="statusParsing">Parsing</string>
     <string name="statusFinished">Finished</string>
     <string name="statusRefreshNeeded">Refresh to update screen</string>
+    <string name="statusWaiting">Waiting to update…</string>
 
     <!-- Settings / Preference Labels -->
     <string name="prefsCategoryDevice">Device</string>
@@ -257,6 +285,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefUserIdSummary">Userid / login for the portal</string>
     <string name="prefUserIdDefault">reefangel</string>
     <string name="prefUserIdInvalid">Invalid userid</string>
+    <string name="prefWifiUserTitle">Device Authentication Username</string>
+    <string name="prefWifiUserSummary">Username for basic authentication on the controller (libraries v1.1.1 and later)</string>
+    <string name="prefWifiPasswordTitle">Device Authentication Password</string>
+    <string name="prefWifiPasswordSummary">Password for basic authentication on the controller (libraries v1.1.1 and later)</string>
     <string name="prefAppTitle">Info</string>
     <string name="prefVersionTitle">Version</string>
     <string name="prefAuthorTitle">Author</string>
@@ -264,7 +296,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefContributorTitle">Contributors</string>
     <string name="prefContributorSummary">Roberto Imai, Mathieu Brisson, Tin Pavlinic</string>
     <string name="prefCopyrightTitle">Copyright</string>
-    <string name="prefCopyrightSummary">Copyright 2011–13 Curt Binder</string>
+    <string name="prefCopyrightSummary">Copyright 2011–14 Curt Binder</string>
     <string name="prefLicenseTitle">License</string>
     <string name="prefLicenseSummary">This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.</string>
     <string name="prefChangelogSummary">Displays changelog</string>
@@ -285,7 +317,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityVisibilityTitle">Salinity</string>
     <string name="prefORPVisibilityTitle">ORP</string>
     <string name="prefPHExpVisibilityTitle">PH Expansion</string>
-    <string name="prefWaterLevelVisibilityTitle">Water Level</string>
+<!--     <string name="prefWaterLevelVisibilityTitle">Water Level</string> -->
     <string name="prefResetCategory">Reset Settings</string>
     <string name="prefResetLabelsTitle">Reset Labels</string>
     <string name="prefResetSummary">Defaults</string>
@@ -301,6 +333,10 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefAPLabelTitle">Actinic Channel</string>
     <string name="prefPHExpLabelTitle">PH Expansion</string>
     <string name="prefWaterLevelLabelTitle">Water Level</string>
+    <string name="prefWaterLevel1LabelTitle">Water Level 1</string>
+    <string name="prefWaterLevel2LabelTitle">Water Level 2</string>
+    <string name="prefWaterLevel3LabelTitle">Water Level 3</string>
+    <string name="prefWaterLevel4LabelTitle">Water Level 4</string>
     <string name="prefPort1LabelTitle">Port 1</string>
     <string name="prefPort2LabelTitle">Port 2</string>
     <string name="prefPort3LabelTitle">Port 3</string>
@@ -372,10 +408,34 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefLoggingDeleteTitle">Delete log file</string>
     <string name="prefLoggingSendTitle">Send log file</string>
     <string name="prefLoggingSendSummary">Emails log file to developer</string>
+    <string name="prefLoggingDisplayTitle">Display log file</string>
     <string name="prefConnectionTimeoutTitle">Connection Timeout</string>
     <string name="prefConnectionTimeoutDefault">15000</string>
     <string name="prefReadTimeoutTitle">Read Timeout</string>
     <string name="prefReadTimeoutDefault">10000</string>
+    <string name="prefAutoRefreshAfterUpdateTitle">Auto refresh after commands</string>
+    <string name="prefAutoRefreshAfterUpdateSummary">Automatically refresh the status after issuing a command or pwm override</string>
+    <string name="prefExpSCDimmingSummary">Configure 16 ch dimming expansion module</string>
+    <string name="prefExpSCDimmingCh0LabelTitle">Channel 0</string>
+    <string name="prefExpSCDimmingCh1LabelTitle">Channel 1</string>
+    <string name="prefExpSCDimmingCh2LabelTitle">Channel 2</string>
+    <string name="prefExpSCDimmingCh3LabelTitle">Channel 3</string>
+    <string name="prefExpSCDimmingCh4LabelTitle">Channel 4</string>
+    <string name="prefExpSCDimmingCh5LabelTitle">Channel 5</string>
+	<string name="prefExpSCDimmingCh6LabelTitle">Channel 6</string>
+    <string name="prefExpSCDimmingCh7LabelTitle">Channel 7</string>
+    <string name="prefExpSCDimmingCh8LabelTitle">Channel 8</string>
+    <string name="prefExpSCDimmingCh9LabelTitle">Channel 9</string>
+    <string name="prefExpSCDimmingCh10LabelTitle">Channel 10</string>
+    <string name="prefExpSCDimmingCh11LabelTitle">Channel 11</string>
+    <string name="prefExpSCDimmingCh12LabelTitle">Channel 12</string>
+    <string name="prefExpSCDimmingCh13LabelTitle">Channel 13</string>
+    <string name="prefExpSCDimmingCh14LabelTitle">Channel 14</string>
+    <string name="prefExpSCDimmingCh15LabelTitle">Channel 15</string>
+    <string name="prefUpdateControllerIPSummary">Updates the home host from the last updated host on the Portal</string>
+    <string name="prefUpdateControllerIPTitle">Update Home Host</string>
+    <string name="prefKeepScreenOnSummary">Keeps the screen from shutting off while the app is open</string>
+    <string name="prefKeepScreenOnTitle">Keep Screen On</string>
 
     <!-- Preference Keys -->
     <string name="prefFirstRunKey">firstrun</string>
@@ -387,6 +447,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefPortAwayKey">portaway</string>
     <string name="prefProfileSelectedKey">profileselected</string>
     <string name="prefUserIdKey">userid</string>
+    <string name="prefWifiUserKey">wifi_username</string>
+    <string name="prefWifiPasswordKey">wifi_password</string>
     <string name="prefChangelogKey">changelog</string>
     <string name="prefT2VisibilityKey">t2_visibility</string>
     <string name="prefT3VisibilityKey">t3_visibility</string>
@@ -398,7 +460,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityVisibilityKey">salinity_visibility</string>
     <string name="prefORPVisibilityKey">orp_visibility</string>
     <string name="prefPHExpVisibilityKey">phe_visibility</string>
-    <string name="prefWaterLevelVisibilityKey">wl_visibility</string>
+    <string name="prefHumidityVisibilityKey">humidity_visibility</string>
+<!--     <string name="prefWaterLevelVisibilityKey">wl_visibility</string> -->
     <string name="prefResetLabelsKey">reset_labels</string>
     <string name="prefResetEnabledPortsKey">reset_enabled_ports</string>
     <string name="prefControllerLabelsDownloadKey">download_labels</string>
@@ -413,7 +476,8 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefSalinityLabelKey">salinity_label</string>
     <string name="prefORPLabelKey">orp_label</string>
     <string name="prefPHExpLabelKey">phe_label</string>
-    <string name="prefWaterLevelLabelKey">wl_label</string>
+    <string name="prefHumidityLabelKey">humidity_label</string>
+<!--     <string name="prefWaterLevelLabelKey">wl_label</string> -->
     <string name="prefMainPort1LabelKey">main_port1_label</string>
     <string name="prefMainPort2LabelKey">main_port2_label</string>
     <string name="prefMainPort3LabelKey">main_port3_label</string>
@@ -535,6 +599,7 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefPre10MemoryKey">pre_10_memory_locations</string>
     <string name="prefPreviousCodeVersionKey">previous_version</string>
     <string name="prefPreviousEMKey">previous_em</string>
+    <string name="prefPreviousEM1Key">previous_em1</string>
     <string name="prefAutoUpdateIntervalKey">update_interval</string>
     <string name="prefAutoUpdateModulesKey">update_modules</string>
     <string name="prefAutoUpdateProfileKey">update_profile</string>
@@ -546,8 +611,29 @@ Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License</stri
     <string name="prefLoggingUpdateKey">logging_update</string>
     <string name="prefLoggingDeleteKey">logging_delete_file</string>
     <string name="prefLoggingSendKey">logging_send</string>
+    <string name="prefLoggingDisplayKey">logging_display</string>
     <string name="prefConnectionTimeoutKey">connection_timeout</string>
     <string name="prefReadTimeoutKey">read_timeout</string>
+    <string name="prefAutoRefreshAfterUpdateKey">auto_refresh_update</string>
+    <string name="prefExpSCDimmingEnableKey">sc_dimming_expansion</string>
+    <string name="prefExpSCDimmingCh0LabelKey">exp_sc_dim_0</string>
+    <string name="prefExpSCDimmingCh1LabelKey">exp_sc_dim_1</string>
+    <string name="prefExpSCDimmingCh2LabelKey">exp_sc_dim_2</string>
+    <string name="prefExpSCDimmingCh3LabelKey">exp_sc_dim_3</string>
+    <string name="prefExpSCDimmingCh4LabelKey">exp_sc_dim_4</string>
+    <string name="prefExpSCDimmingCh5LabelKey">exp_sc_dim_5</string>
+    <string name="prefExpSCDimmingCh6LabelKey">exp_sc_dim_6</string>
+    <string name="prefExpSCDimmingCh7LabelKey">exp_sc_dim_7</string>
+    <string name="prefExpSCDimmingCh8LabelKey">exp_sc_dim_8</string>
+    <string name="prefExpSCDimmingCh9LabelKey">exp_sc_dim_9</string>
+    <string name="prefExpSCDimmingCh10LabelKey">exp_sc_dim_10</string>
+    <string name="prefExpSCDimmingCh11LabelKey">exp_sc_dim_11</string>
+    <string name="prefExpSCDimmingCh12LabelKey">exp_sc_dim_12</string>
+    <string name="prefExpSCDimmingCh13LabelKey">exp_sc_dim_13</string>
+    <string name="prefExpSCDimmingCh14LabelKey">exp_sc_dim_14</string>
+    <string name="prefExpSCDimmingCh15LabelKey">exp_sc_dim_15</string>
+    <string name="prefUpdateControllerIPKey">update_controller_ip</string>
+    <string name="prefKeepScreenOnKey">keep_screen_on</string>
 
     <!-- Permissions -->
     <string name="permissionQueryStatusLabel">Query status of controller</string>

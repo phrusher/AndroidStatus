@@ -9,16 +9,22 @@
 package info.curtbinder.reefangel.phone.pages;
 
 import info.curtbinder.reefangel.controller.Controller;
+import info.curtbinder.reefangel.phone.Globals;
 import info.curtbinder.reefangel.phone.R;
+
+import java.util.Locale;
+
 import android.content.Context;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnLongClickListener;
 import android.widget.TableRow;
 import android.widget.TextView;
 
-public class DimmingPage extends RAPage {
+public class DimmingPage extends RAPage
+	implements OnLongClickListener {
 	private static final String TAG = DimmingPage.class.getSimpleName();
 
 	Context ctx; // saved context from parent
@@ -26,6 +32,7 @@ public class DimmingPage extends RAPage {
 			new TextView[Controller.MAX_PWM_EXPANSION_PORTS];
 	private TableRow[] pwmeRow =
 			new TableRow[Controller.MAX_PWM_EXPANSION_PORTS];
+	private short[] pwmeValues = new short[Controller.MAX_PWM_EXPANSION_PORTS];
 
 	public DimmingPage ( Context context ) {
 		super( context );
@@ -45,6 +52,7 @@ public class DimmingPage extends RAPage {
 						.getSystemService( Context.LAYOUT_INFLATER_SERVICE );
 		layoutInflater.inflate( R.layout.dimming, this );
 		findViews();
+		
 	}
 
 	private void findViews ( ) {
@@ -60,15 +68,18 @@ public class DimmingPage extends RAPage {
 		pwmeText[4] = (TextView) pwmeRow[4].findViewById( R.id.rowValue );
 		pwmeRow[5] = (TableRow) findViewById( R.id.rowPWME5 );
 		pwmeText[5] = (TextView) pwmeRow[5].findViewById( R.id.rowValue );
+		for ( int i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ ) {
+			pwmeText[i].setLongClickable( true );
+			pwmeText[i].setOnLongClickListener( this );
+		}
 
 	}
 
 	public void setLabel ( int channel, String label ) {
 		((TextView) pwmeRow[channel].findViewById( R.id.rowTitle ))
 				.setText( label );
-		String s =
-				new String( String.format( "%s %d", ctx.getResources()
-						.getString( R.string.labelChannel ), channel ) );
+		String s = String.format( Locale.getDefault(), 
+		                          "%s %d", ctx.getString( R.string.labelChannel ), channel );
 		((TextView) pwmeRow[channel].findViewById( R.id.rowSubTitle ))
 				.setText( s );
 	}
@@ -91,10 +102,43 @@ public class DimmingPage extends RAPage {
 			pwmeText[i].setText( v[i] );
 		}
 	}
+	
+	public void updatePWMValues ( short[] v ) {
+		for ( int i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ ) {
+			pwmeValues[i] = v[i];
+		}
+	}
 
 	@Override
 	public String getPageTitle ( ) {
-		return ctx.getResources().getString( R.string.labelDimming );
+		return ctx.getString( R.string.labelDimming );
 	}
 
+	@Override
+	public boolean onLongClick ( View v ) {
+		View parent = (View) v.getParent();
+		switch ( parent.getId() ) {
+			default:
+				return false;
+			case R.id.rowPWME0:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL0, pwmeValues[0]);
+				break;
+			case R.id.rowPWME1:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL1, pwmeValues[1]);
+				break;
+			case R.id.rowPWME2:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL2, pwmeValues[2]);
+				break;
+			case R.id.rowPWME3:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL3, pwmeValues[3]);
+				break;
+			case R.id.rowPWME4:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL4, pwmeValues[4]);
+				break;
+			case R.id.rowPWME5:
+				displayOverridePopup(Globals.OVERRIDE_CHANNEL5, pwmeValues[5]);
+				break;
+		}
+		return true;
+	}
 }

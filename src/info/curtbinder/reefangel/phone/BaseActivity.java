@@ -11,8 +11,7 @@ package info.curtbinder.reefangel.phone;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 
-
-public class BaseActivity extends ActionBarActivity  {
+public class BaseActivity extends ActionBarActivity {
 	RAApplication rapp;
 
 	protected void onCreate ( Bundle savedInstanceState ) {

@@ -20,7 +20,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListAdapter;
 
-
 public class ErrorListFragment extends ListFragment implements
 		LoaderManager.LoaderCallbacks<Cursor> {
 

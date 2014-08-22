@@ -8,9 +8,9 @@
 
 package info.curtbinder.reefangel.phone;
 
-import info.curtbinder.reefangel.db.RADbHelper;
 import info.curtbinder.reefangel.service.MessageCommands;
 import info.curtbinder.reefangel.service.UpdateService;
+import info.curtbinder.reefangel.service.XMLReadException;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -49,18 +49,16 @@ public class RAApplication extends Application {
 	// Error code stuff
 	private String[] errorCodes;
 	private String[] errorCodesStrings;
+	private String errorCodeMessage;
 	public int errorCode;
 	public int errorCount;
-
-	// Controller Data
-	public RADbHelper data;
 
 	public void onCreate ( ) {
 		errorCodes = getResources().getStringArray( R.array.errorCodes );
 		errorCodesStrings =
 				getResources().getStringArray( R.array.errorCodesStrings );
+		errorCodeMessage = ""; // set to no error message
 		errorCode = 0; // set to no error initially
-		data = new RADbHelper( this );
 		raprefs = new RAPreferences( this );
 
 		// initialize the error count
@@ -69,7 +67,6 @@ public class RAApplication extends Application {
 
 	public void onTerminate ( ) {
 		super.onTerminate();
-		data.close();
 	}
 
 	public void restartAutoUpdateService ( ) {
@@ -134,8 +131,35 @@ public class RAApplication extends Application {
 	}
 
 	// Error Logging
+	public void clearErrorCode() {
+		errorCode = 0;
+		errorCodeMessage = "";
+	}
+	
+	private String getSimpleErrorMessage ( String msg ) {
+		String s = "";
+		if ( msg.contains( "EHOSTUNREACH" ) ) {
+			s = "Host unreachable: " + raprefs.getHost() + ":" + raprefs.getPort();
+		} else if ( msg.contains( "ECONNREFUSED" ) ) {
+			s = "Connection Refused: " + raprefs.getHost() + ":" + raprefs.getPort();
+		} else if ( msg.contains( "ECONNRESET" ) ) {
+			s = "Connection Reset by Peer";
+		} else {
+			s = msg;
+		}
+		return s;
+	}
+	
 	public void error ( int errorCodeIndex, Throwable t, String msg ) {
 		errorCode = Integer.parseInt( errorCodes[errorCodeIndex] );
+		if ( t.getMessage() != null ) 
+			errorCodeMessage = getSimpleErrorMessage(t.getMessage());
+		if ( errorCode == 15 ) 
+			// timeout error
+			errorCodeMessage = String.format( Locale.getDefault(), 
+			                                  getString(R.string.messageErrorTimeout),
+			                                  raprefs.getHost(), raprefs.getPort());
+		Log.d(TAG, "Error: " + errorCode + ", " + errorCodeMessage);
 
 		// if logging enabled, save the log
 		if ( raprefs.isLoggingEnabled() ) {
@@ -164,6 +188,10 @@ public class RAApplication extends Application {
 										raprefs.getUserId() );
 				pw.println( s );
 				pw.println( msg );
+				if ( t instanceof XMLReadException ) {
+					// we have an XML read exception, get the xml data if any
+					pw.println( ((XMLReadException) t).getXmlData() );
+				}
 				pw.println( t.toString() );
 				pw.println( "Stack Trace:" );
 				pw.flush();
@@ -184,13 +212,13 @@ public class RAApplication extends Application {
 		for ( int i = 0; i < errorCodes.length; i++ ) {
 			if ( Integer.parseInt( errorCodes[i] ) == errorCode ) {
 				// found code
-				s =
-						String.format(	Locale.US,
-										"%s %d: %s",
-										getResources()
-												.getText( R.string.messageError ),
-										errorCode,
-										errorCodesStrings[i] );
+				s = String.format(	Locale.US,
+									"%s %d: %s",
+									getResources()
+											.getText( R.string.messageError ),
+									errorCode,
+									(errorCodeMessage == "" ) ? errorCodesStrings[i] 
+															: errorCodeMessage);
 				break;
 			}
 		}
@@ -331,8 +359,218 @@ public class RAApplication extends Application {
 		return true;
 	}
 
+	public String getPWMOverrideChannelName ( int channel ) {
+		String name = "";
+		switch ( channel ) {
+			default:
+				name = getString(R.string.labelChannel);
+				break;
+			case Globals.OVERRIDE_DAYLIGHT:
+				name = raprefs.getDPLabel();
+				break;
+			case Globals.OVERRIDE_ACTINIC:
+				name = raprefs.getAPLabel();
+				break;
+			case Globals.OVERRIDE_CHANNEL0:
+			case Globals.OVERRIDE_CHANNEL1:
+			case Globals.OVERRIDE_CHANNEL2:
+			case Globals.OVERRIDE_CHANNEL3:
+			case Globals.OVERRIDE_CHANNEL4:
+			case Globals.OVERRIDE_CHANNEL5:
+				name = raprefs.getDimmingModuleChannelLabel( channel - Globals.OVERRIDE_CHANNEL0 );
+				break;
+			case Globals.OVERRIDE_AI_WHITE:
+				name = getString( R.string.labelAI ) + " " + getString( R.string.labelWhite );
+				break;
+			case Globals.OVERRIDE_AI_ROYALBLUE:
+				name = getString( R.string.labelAI ) + " " + getString( R.string.labelRoyalBlue );
+				break;
+			case Globals.OVERRIDE_AI_BLUE:
+				name = getString( R.string.labelAI ) + " " + getString( R.string.labelBlue );
+				break;
+			case Globals.OVERRIDE_RF_WHITE:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelWhite );
+				break;
+			case Globals.OVERRIDE_RF_ROYALBLUE:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelRoyalBlue );
+				break;
+			case Globals.OVERRIDE_RF_RED:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelRed );
+				break;
+			case Globals.OVERRIDE_RF_GREEN:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelGreen );
+				break;
+			case Globals.OVERRIDE_RF_BLUE:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelBlue );
+				break;
+			case Globals.OVERRIDE_RF_INTENSITY:
+				name = getString( R.string.labelRadion ) + " " + getString( R.string.labelIntensity );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL0:
+			case Globals.OVERRIDE_16CH_CHANNEL1:
+			case Globals.OVERRIDE_16CH_CHANNEL2:
+			case Globals.OVERRIDE_16CH_CHANNEL3:
+			case Globals.OVERRIDE_16CH_CHANNEL4:
+			case Globals.OVERRIDE_16CH_CHANNEL5:
+			case Globals.OVERRIDE_16CH_CHANNEL6:
+			case Globals.OVERRIDE_16CH_CHANNEL7:
+			case Globals.OVERRIDE_16CH_CHANNEL8:
+			case Globals.OVERRIDE_16CH_CHANNEL9:
+			case Globals.OVERRIDE_16CH_CHANNEL10:
+			case Globals.OVERRIDE_16CH_CHANNEL11:
+			case Globals.OVERRIDE_16CH_CHANNEL12:
+			case Globals.OVERRIDE_16CH_CHANNEL13:
+			case Globals.OVERRIDE_16CH_CHANNEL14:
+			case Globals.OVERRIDE_16CH_CHANNEL15:
+				name = raprefs.getSCDimmingModuleChannelLabel( channel - Globals.OVERRIDE_16CH_CHANNEL0 );
+				break;
+		}
+		return name;
+	}
+	
+	public String getPWMOverrideMessageDisplay ( int channel ) {
+		String msg = "";
+		String name = getPWMOverrideChannelName(channel);
+		switch ( channel ) {
+			default:
+				msg = getString(R.string.labelPwmOverride);
+				break;
+			case Globals.OVERRIDE_DAYLIGHT:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefDPVisibilityTitle) );
+				break;
+			case Globals.OVERRIDE_ACTINIC:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefAPVisibilityTitle) );
+				break;
+			case Globals.OVERRIDE_CHANNEL0:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh0LabelTitle));
+				break;
+			case Globals.OVERRIDE_CHANNEL1:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh1LabelTitle) );
+				break;
+			case Globals.OVERRIDE_CHANNEL2:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh2LabelTitle) );
+				break;
+			case Globals.OVERRIDE_CHANNEL3:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh3LabelTitle) );
+				break;
+			case Globals.OVERRIDE_CHANNEL4:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh4LabelTitle) );
+				break;
+			case Globals.OVERRIDE_CHANNEL5:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpDimmingCh5LabelTitle) );
+				break;
+			case Globals.OVERRIDE_AI_WHITE:
+			case Globals.OVERRIDE_AI_ROYALBLUE:
+			case Globals.OVERRIDE_AI_BLUE:
+			case Globals.OVERRIDE_RF_WHITE:
+			case Globals.OVERRIDE_RF_ROYALBLUE:
+			case Globals.OVERRIDE_RF_RED:
+			case Globals.OVERRIDE_RF_GREEN:
+			case Globals.OVERRIDE_RF_BLUE:
+			case Globals.OVERRIDE_RF_INTENSITY:
+				msg = name + " " + getString( R.string.labelChannel );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL0:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh0LabelTitle));
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL1:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh1LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL2:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh2LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL3:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh3LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL4:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh4LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL5:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh5LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL6:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh6LabelTitle));
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL7:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh7LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL8:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh8LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL9:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh9LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL10:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh10LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL11:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh11LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL12:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh12LabelTitle));
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL13:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh13LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL14:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh14LabelTitle) );
+				break;
+			case Globals.OVERRIDE_16CH_CHANNEL15:
+				msg = String.format( Locale.getDefault(),
+				                     getString( R.string.messagePWMPopupCustom),
+				                     name, getString(R.string.prefExpSCDimmingCh15LabelTitle) );
+				break;
+		}
+		return msg;
+	}
+	
 	// Preferences
-
 	public boolean isFirstRun ( ) {
 		// First run will be determined by:
 		// if the first run key is NOT set AND
@@ -373,7 +611,7 @@ public class RAApplication extends Application {
 			// save code version in preferences
 			raprefs.setPreviousCodeVersion( current );
 			// newer version, display changelog
-			Changelog.displayChangelog( a );
+			DisplayLog.displayChangelog( a );
 		}
 		// deletePref( R.string.prefPreviousCodeVersion );
 	}

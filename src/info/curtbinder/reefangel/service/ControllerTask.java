@@ -12,24 +12,23 @@ import info.curtbinder.reefangel.controller.Controller;
 import info.curtbinder.reefangel.controller.Relay;
 import info.curtbinder.reefangel.db.StatusProvider;
 import info.curtbinder.reefangel.db.StatusTable;
+import info.curtbinder.reefangel.phone.Globals;
 import info.curtbinder.reefangel.phone.Permissions;
 import info.curtbinder.reefangel.phone.R;
 import info.curtbinder.reefangel.phone.RAApplication;
 import info.curtbinder.reefangel.phone.RAPreferences;
 
+import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.net.ConnectException;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.xml.sax.InputSource;
@@ -40,6 +39,11 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
+
+import com.squareup.okhttp.Credentials;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 
 public class ControllerTask implements Runnable {
 
@@ -58,48 +62,54 @@ public class ControllerTask implements Runnable {
 		// Communicate with controller
 
 		// clear out the error code on run
-		rapp.errorCode = 0;
-		HttpURLConnection con = null;
-		String res = "";
+		rapp.clearErrorCode();
+		Response response = null;
+		boolean fInterrupted = false;
 		broadcastUpdateStatus( R.string.statusStart );
 		try {
 			URL url = new URL( host.toString() );
-			con = (HttpURLConnection) url.openConnection();
-			con.setReadTimeout( host.getReadTimeout() );
-			con.setConnectTimeout( host.getConnectTimeout() );
-			con.setRequestMethod( "GET" );
-			con.setDoInput( true );
-
+			OkHttpClient client = new OkHttpClient();
+			client.setConnectTimeout( host.getConnectTimeout(), TimeUnit.MILLISECONDS );
+			client.setReadTimeout( host.getReadTimeout(), TimeUnit.MILLISECONDS );
+			Request.Builder builder = new Request.Builder();
+			builder.url( url );
+			if ( host.isDeviceAuthenticationEnabled() ) {
+				String creds = Credentials.basic( host.getWifiUsername(), host.getWifiPassword() );
+				builder.header( "Authorization", creds );
+			}
+			Request req = builder.build();
 			broadcastUpdateStatus( R.string.statusConnect );
-			con.connect();
+			response = client.newCall( req ).execute();
 
+			if ( !response.isSuccessful() ) 
+				throw new IOException("Unexpected code " + response);
+			
 			if ( Thread.interrupted() )
 				throw new InterruptedException();
 
-			res = sendCommand( con.getInputStream() );
 		} catch ( MalformedURLException e ) {
 			rapp.error( 1, e, "MalformedURLException" );
-		} catch ( ProtocolException e ) {
-			rapp.error( 1, e, "ProtocolException" );
 		} catch ( SocketTimeoutException e ) {
 			rapp.error( 5, e, "SocketTimeoutException" );
 		} catch ( ConnectException e ) {
 			rapp.error( 3, e, "ConnectException" );
-		} catch ( IOException e ) {
-			rapp.error( 1, e, "IOException" );
+		} catch ( UnknownHostException e ) {
+			String msg = "Unknown Host: " + host.toString();
+			UnknownHostException ue = new UnknownHostException(msg);
+			rapp.error( 4, ue, "UnknownHostException" );
+		} catch ( EOFException e ) {
+			EOFException eof = new EOFException(rapp.getString( R.string.errorAuthentication ));
+			rapp.error( 3, eof, "EOFException" );
+		} catch ( IOException e ) {			
+			rapp.error( 3, e, "IOException" );
 		} catch ( InterruptedException e ) {
-			res =
-					(String) rapp.getResources()
-							.getText( R.string.messageCancelled );
+			fInterrupted = true;
 		}
+		
+		processResponse(response, fInterrupted);
+	}
 
-		if ( con != null ) {
-			con.disconnect();
-			broadcastUpdateStatus( R.string.statusDisconnected );
-		}
-
-		broadcastUpdateStatus( R.string.statusReadResponse );
-
+	private void processResponse ( Response response, boolean fInterrupted  ) {
 		// check if there was an error
 		if ( rapp.errorCode > 0 ) {
 			// encountered an error, display an error on screen
@@ -111,73 +121,37 @@ public class ControllerTask implements Runnable {
 			} else {
 				broadcastErrorMessage();
 			}
-		} else if ( res.equals( (String) rapp.getResources()
-				.getText( R.string.messageCancelled ) ) ) {
+		} else if ( fInterrupted ) {
 			// Interrupted
 			broadcastUpdateStatus( R.string.messageCancelled );
 		} else {
-			XMLHandler xml = new XMLHandler();
-			if ( raprefs.useOld085xExpansionRelays() ) {
-				xml.setOld085xExpansion( true );
+			try {
+				XMLHandler xml = new XMLHandler();
+				if ( raprefs.useOld085xExpansionRelays() ) {
+					xml.setOld085xExpansion( true );
+				}
+				if ( !parseXML( xml, response) ) {
+					// error parsing
+					broadcastErrorMessage();
+					throw new Exception();
+				}
+				broadcastUpdateStatus( R.string.statusUpdatingDisplay );
+				broadcastResponses( xml );
+			} catch ( Exception e ) {
+				// ignore the exception, just needed a way to break out
+				// of the sequence of events to close the response
 			}
-			if ( !parseXML( xml, res ) ) {
-				// error parsing
-				broadcastErrorMessage();
-				return;
-			}
-			broadcastUpdateStatus( R.string.statusUpdatingDisplay );
-			broadcastResponses( xml );
+		}
+		if ( response != null ) { 
+			try {
+				response.body().close();
+			} catch ( IOException e ) {
+			} 
 		}
 	}
-
-	private String sendCommand ( InputStream i ) {
-		StringBuilder s = new StringBuilder( 8192 );
-		try {
-			// Check for an interruption
-			if ( Thread.interrupted() )
-				throw new InterruptedException();
-
-			broadcastUpdateStatus( R.string.statusSendingCommand );
-			int available;
-			byte[] b;
-			int nRead = 0;
-			// int count = 1;
-			while ( (available = i.available()) > 0 ) {
-				// Check for an interruption
-				// Log.d(TAG, "Count: " + count++ + ", size: " + available);
-				if ( Thread.interrupted() )
-					throw new InterruptedException();
-
-				b = new byte[available];
-				nRead = i.read( b, 0, available );
-				s.append( new String( b, 0, nRead ) );
-			}
-			broadcastUpdateStatus( R.string.statusReadResponse );
-		} catch ( InterruptedException e ) {
-			s =
-					new StringBuilder( (String) rapp.getResources()
-							.getText( R.string.messageCancelled ) );
-		} catch ( ConnectException e ) {
-			rapp.error( 3, e, "sendCommand: ConnectException" );
-		} catch ( UnknownHostException e ) {
-			rapp.error( 4, e, "sendCommand: UnknownHostException" );
-		} catch ( Exception e ) {
-			rapp.error( 2, e, "sendCommand: Exception" );
-		}
-
-		// if we encountered an error, set the error text
-		if ( rapp.errorCode > 0 ) {
-			s =
-					new StringBuilder( (String) rapp.getResources()
-							.getText( R.string.messageError ) );
-		}
-
-		return s.toString();
-	}
-
-	private boolean parseXML ( XMLHandler xml, String res ) {
+	
+	private boolean parseXML ( XMLHandler xml, Response response ) {
 		SAXParserFactory spf = SAXParserFactory.newInstance();
-		SAXParser sp = null;
 		XMLReader xr = null;
 		boolean result = false;
 		try {
@@ -186,8 +160,7 @@ public class ControllerTask implements Runnable {
 				throw new InterruptedException();
 
 			broadcastUpdateStatus( R.string.statusInitParser );
-			sp = spf.newSAXParser();
-			xr = sp.getXMLReader();
+			xr = spf.newSAXParser().getXMLReader();
 			xr.setContentHandler( xml );
 			xr.setErrorHandler( xml );
 
@@ -196,22 +169,44 @@ public class ControllerTask implements Runnable {
 				throw new InterruptedException();
 
 			broadcastUpdateStatus( R.string.statusParsing );
-			xr.parse( new InputSource( new StringReader( res ) ) );
+			
+			// OkHttp Calls
+//			printHeaders(response);
+			String s = "";
+			try {
+				s = response.body().string();
+			} catch ( IOException e ) {
+				// Error reading from the connection
+				XMLReadException x = new XMLReadException("XMLReadException");
+				x.addXmlData( s );
+				throw x;
+			}
+//			Log.d(TAG, "XML: " + s );
+			xr.parse( new InputSource(new StringReader(s)) );
 			broadcastUpdateStatus( R.string.statusFinished );
 			result = true;
 		} catch ( ParserConfigurationException e ) {
-			rapp.error( 7, e, "parseXML: ParserConfigurationException" );
+			rapp.error( 7, e, "ParserConfigurationException" );
 		} catch ( IOException e ) {
-			rapp.error( 8, e, "parseXML: IOException" );
+			rapp.error( 8, e, "IOException" );
 		} catch ( SAXException e ) {
-			rapp.error( 9, e, "parseXML: SAXException" );
+			rapp.error( 9, e, "SAXException" );
+		} catch ( XMLReadException e ) {
+			rapp.error( 10, e, "XMLReadException" );
 		} catch ( InterruptedException e ) {
 			// Not a true error, so only for debugging
 			Log.d( TAG, "parseXML: InterruptedException", e );
 		}
 		return result;
 	}
-
+	
+//	private void printHeaders(Response r) {
+//		Headers h = r.headers();
+//		for ( int i = 0; i < h.size(); i++ ) {
+//			Log.d(TAG, "Header: " + h.name( i ) + ": " + h.value( i ) );
+//		}
+//	}
+	
 	// Broadcast Stuff
 	private void broadcastResponses ( XMLHandler xml ) {
 		if ( host.isRequestForLabels() ) {
@@ -246,6 +241,12 @@ public class ControllerTask implements Runnable {
 		} else if ( host.getCommand().equals( RequestCommands.Reboot ) ) {
 			broadcastCommandResponse(	R.string.labelReboot,
 										xml.getModeResponse() );
+		} else if ( host.getCommand().equals( RequestCommands.Calibrate ) ) {
+			broadcastCalibrateResponse(getCalibrateResponseMessage(host.getCalibrateType()),
+			                         xml.getModeResponse());
+		} else if ( host.getCommand().equals( RequestCommands.PwmOverride ) ) {
+			broadcastOverrideResponse( host.getOverrideChannel(), 
+			                          xml.getModeResponse() );
 		} else if ( host.getCommand().equals( RequestCommands.Version ) ) {
 			Intent i = new Intent( MessageCommands.VERSION_RESPONSE_INTENT );
 			i.putExtra( MessageCommands.VERSION_RESPONSE_STRING,
@@ -264,16 +265,57 @@ public class ControllerTask implements Runnable {
 		}
 	}
 
+	private String getCalibrateResponseMessage ( int location ) {
+		int id;
+		switch ( location ) {
+			default:
+			case Globals.CALIBRATE_PH:
+				id = R.string.labelCalibratePH;
+				break;
+			case Globals.CALIBRATE_PHE:
+				id = R.string.labelCalibratePHExp;
+				break;
+			case Globals.CALIBRATE_ORP:
+				id = R.string.labelCalibrateORP;
+				break;
+			case Globals.CALIBRATE_SALINITY:
+				id = R.string.labelCalibrateSalinity;
+				break;
+			case Globals.CALIBRATE_WATERLEVEL:
+				id = R.string.labelCalibrateWaterLevel;
+				break;
+		}
+		return rapp.getString(id);
+	}
+	
+	private void broadcastCalibrateResponse ( String msg, String response ) {
+		msg += rapp.getString( R.string.labelSeparator );
+		Log.d(	TAG, msg + " " + response );
+		Intent i = new Intent( MessageCommands.CALIBRATE_RESPONSE_INTENT );
+		i.putExtra( MessageCommands.CALIBRATE_RESPONSE_STRING,
+					msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );	
+	}
+	
+	private void broadcastOverrideResponse ( int channel, String response ) {
+		// get channel name
+		// create response -  channel: MESSAGE
+		String msg = rapp.getPWMOverrideChannelName( channel ) 
+				+ rapp.getString( R.string.labelSeparator );
+		Log.d( TAG, msg + " " + response );
+		Intent i = new Intent( MessageCommands.OVERRIDE_RESPONSE_INTENT );
+		i.putExtra( MessageCommands.OVERRIDE_RESPONSE_STRING, 
+		            msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );
+	}
+	
 	private void broadcastCommandResponse ( int id, String response ) {
-		Log.d(	TAG,
-				rapp.getString( id ) + rapp.getString( R.string.labelSeparator )
-						+ " " + response );
+		String msg = rapp.getString( id ) + rapp.getString( R.string.labelSeparator );
+		Log.d(	TAG, msg + " " + response );
 		Intent i = new Intent( MessageCommands.COMMAND_RESPONSE_INTENT );
 		i.putExtra( MessageCommands.COMMAND_RESPONSE_STRING,
-					rapp.getString( id )
-							+ rapp.getString( R.string.labelSeparator ) + " "
-							+ response );
-		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );
+					msg + " " + response );
+		rapp.sendBroadcast( i, Permissions.SEND_COMMAND );	
 	}
 
 	// FIXME improve preference saving
@@ -316,14 +358,21 @@ public class ControllerTask implements Runnable {
 		if ( !ra.getPwmDLabel().equals( "" ) ) {
 			raprefs.set( R.string.prefDPLabelKey, ra.getPwmDLabel() );
 		}
-		if ( !ra.getWaterLevelLabel().equals( "" ) ) {
-			raprefs.set(	R.string.prefWaterLevelLabelKey,
-							ra.getWaterLevelLabel() );
+		for ( i = 0; i < Controller.MAX_WATERLEVEL_PORTS; i++ ) {
+			if ( !ra.getWaterLevelLabel( (short)i ).equals("") ) {
+				raprefs.set( raprefs.getWaterLevelLabelKey( i ), 
+				             ra.getWaterLevelLabel((short)i) );
+			}
 		}
 		for ( i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ ) {
 			if ( !ra.getPwmExpansionLabel( (short) i ).equals( "" ) )
 				raprefs.setDimmingModuleChannelLabel( i, ra
 						.getPwmExpansionLabel( (short) i ) );
+		}
+		for ( i = 0; i < Controller.MAX_SCPWM_EXPANSION_PORTS; i++ ) {
+			if ( !ra.getSCPwmExpansionLabel( (short) i ).equals( "" ) )
+				raprefs.setSCDimmingModuleChannelLabel( i, ra
+						.getSCPwmExpansionLabel( (short) i ) );
 		}
 		for ( i = 0; i < Controller.MAX_CUSTOM_VARIABLES; i++ ) {
 			if ( !ra.getCustomVariableLabel( (short) i ).equals( "" ) )
@@ -334,6 +383,9 @@ public class ControllerTask implements Runnable {
 			if ( !ra.getIOChannelLabel( (short) i ).equals( "" ) )
 				raprefs.setIOModuleChannelLabel( i, ra
 						.getIOChannelLabel( (short) i ) );
+		}
+		if ( !ra.getHumidityLabel().equals( "" ) ) {
+			raprefs.set( R.string.prefHumidityLabelKey, ra.getHumidityLabel() );
 		}
 
 		// Tell the activity we updated the labels
@@ -425,9 +477,66 @@ public class ControllerTask implements Runnable {
 		v.put( StatusTable.COL_C6, ra.getCustomVariable( (byte) 6 ) );
 		v.put( StatusTable.COL_C7, ra.getCustomVariable( (byte) 7 ) );
 		v.put( StatusTable.COL_EM, ra.getExpansionModules() );
+		v.put( StatusTable.COL_EM1, ra.getExpansionModules1() );
 		v.put( StatusTable.COL_REM, ra.getRelayExpansionModules() );
 		v.put( StatusTable.COL_PHE, ra.getPHExp() );
-		v.put( StatusTable.COL_WL, ra.getWaterLevel() );
+		v.put( StatusTable.COL_WL, ra.getWaterLevel( (short) 0) );
+		v.put( StatusTable.COL_WL1, ra.getWaterLevel( (short) 1) );
+		v.put( StatusTable.COL_WL2, ra.getWaterLevel( (short) 2) );
+		v.put( StatusTable.COL_WL3, ra.getWaterLevel( (short) 3) );
+		v.put( StatusTable.COL_WL4, ra.getWaterLevel( (short) 4) );
+		v.put( StatusTable.COL_HUM, ra.getHumidity() );
+		v.put( StatusTable.COL_PWMAO, ra.getPwmAOverride() );
+		v.put( StatusTable.COL_PWMDO, ra.getPwmDOverride() );
+		v.put( StatusTable.COL_PWME0O, ra.getPwmExpansionOverride( (short) 0 ) );
+		v.put( StatusTable.COL_PWME1O, ra.getPwmExpansionOverride( (short) 1 ) );
+		v.put( StatusTable.COL_PWME2O, ra.getPwmExpansionOverride( (short) 2 ) );
+		v.put( StatusTable.COL_PWME3O, ra.getPwmExpansionOverride( (short) 3 ) );
+		v.put( StatusTable.COL_PWME4O, ra.getPwmExpansionOverride( (short) 4 ) );
+		v.put( StatusTable.COL_PWME5O, ra.getPwmExpansionOverride( (short) 5 ) );
+		v.put( StatusTable.COL_AIWO, ra.getAIChannelOverride( Controller.AI_WHITE ) );
+		v.put( StatusTable.COL_AIBO, ra.getAIChannelOverride( Controller.AI_BLUE ) );
+		v.put( StatusTable.COL_AIRBO, ra.getAIChannelOverride( Controller.AI_ROYALBLUE ) );
+		v.put( StatusTable.COL_RFWO, ra.getRadionChannelOverride( Controller.RADION_WHITE ) );
+		v.put( StatusTable.COL_RFRBO, ra.getRadionChannelOverride( Controller.RADION_ROYALBLUE ) );
+		v.put( StatusTable.COL_RFRO, ra.getRadionChannelOverride( Controller.RADION_RED ) );
+		v.put( StatusTable.COL_RFGO, ra.getRadionChannelOverride( Controller.RADION_GREEN ) );
+		v.put( StatusTable.COL_RFBO, ra.getRadionChannelOverride( Controller.RADION_BLUE ) );
+		v.put( StatusTable.COL_RFIO, ra.getRadionChannelOverride( Controller.RADION_INTENSITY ) );
+		v.put( StatusTable.COL_SF, ra.getStatusFlags() );
+		v.put( StatusTable.COL_AF, ra.getAlertFlags() );
+		v.put( StatusTable.COL_SCPWME0, ra.getSCPwmExpansion( (short) 0));
+		v.put( StatusTable.COL_SCPWME0O, ra.getSCPwmExpansionOverride( (short) 0));
+		v.put( StatusTable.COL_SCPWME1, ra.getSCPwmExpansion( (short) 1));
+		v.put( StatusTable.COL_SCPWME1O, ra.getSCPwmExpansionOverride( (short) 1));
+		v.put( StatusTable.COL_SCPWME2, ra.getSCPwmExpansion( (short) 2));
+		v.put( StatusTable.COL_SCPWME2O, ra.getSCPwmExpansionOverride( (short) 2));
+		v.put( StatusTable.COL_SCPWME3, ra.getSCPwmExpansion( (short) 3));
+		v.put( StatusTable.COL_SCPWME3O, ra.getSCPwmExpansionOverride( (short) 3));
+		v.put( StatusTable.COL_SCPWME4, ra.getSCPwmExpansion( (short) 4));
+		v.put( StatusTable.COL_SCPWME4O, ra.getSCPwmExpansionOverride( (short) 4));
+		v.put( StatusTable.COL_SCPWME5, ra.getSCPwmExpansion( (short) 5));
+		v.put( StatusTable.COL_SCPWME5O, ra.getSCPwmExpansionOverride( (short) 5));
+		v.put( StatusTable.COL_SCPWME6, ra.getSCPwmExpansion( (short) 6));
+		v.put( StatusTable.COL_SCPWME6O, ra.getSCPwmExpansionOverride( (short) 6));
+		v.put( StatusTable.COL_SCPWME7, ra.getSCPwmExpansion( (short) 7));
+		v.put( StatusTable.COL_SCPWME7O, ra.getSCPwmExpansionOverride( (short) 7));
+		v.put( StatusTable.COL_SCPWME8, ra.getSCPwmExpansion( (short) 8));
+		v.put( StatusTable.COL_SCPWME8O, ra.getSCPwmExpansionOverride( (short) 8));
+		v.put( StatusTable.COL_SCPWME9, ra.getSCPwmExpansion( (short) 9));
+		v.put( StatusTable.COL_SCPWME9O, ra.getSCPwmExpansionOverride( (short) 9));
+		v.put( StatusTable.COL_SCPWME10, ra.getSCPwmExpansion( (short) 10));
+		v.put( StatusTable.COL_SCPWME10O, ra.getSCPwmExpansionOverride( (short) 10));
+		v.put( StatusTable.COL_SCPWME11, ra.getSCPwmExpansion( (short) 11));
+		v.put( StatusTable.COL_SCPWME11O, ra.getSCPwmExpansionOverride( (short) 11));
+		v.put( StatusTable.COL_SCPWME12, ra.getSCPwmExpansion( (short) 12));
+		v.put( StatusTable.COL_SCPWME12O, ra.getSCPwmExpansionOverride( (short) 12));
+		v.put( StatusTable.COL_SCPWME13, ra.getSCPwmExpansion( (short) 13));
+		v.put( StatusTable.COL_SCPWME13O, ra.getSCPwmExpansionOverride( (short) 13));
+		v.put( StatusTable.COL_SCPWME14, ra.getSCPwmExpansion( (short) 14));
+		v.put( StatusTable.COL_SCPWME14O, ra.getSCPwmExpansionOverride( (short) 14));
+		v.put( StatusTable.COL_SCPWME15, ra.getSCPwmExpansion( (short) 15));
+		v.put( StatusTable.COL_SCPWME15O, ra.getSCPwmExpansionOverride( (short) 15));
 		rapp.getContentResolver()
 				.insert(	Uri.parse( StatusProvider.CONTENT_URI + "/"
 										+ StatusProvider.PATH_STATUS ), v );

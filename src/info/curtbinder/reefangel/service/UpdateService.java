@@ -94,6 +94,8 @@ public class UpdateService extends IntentService {
 			}
 			h.setHost( host );
 			h.setPort( port );
+			h.setWifiUsername( raprefs.getDeviceWifiUsername() );
+			h.setWifiPassword( raprefs.getDeviceWifiPassword() );
 			h.setCommand( RequestCommands.Status );
 		} else {
 			// reeefangel.com / portal
@@ -103,7 +105,7 @@ public class UpdateService extends IntentService {
 		Log.d( TAG, "AutoUpdate: " + h.toString() );
 		runTask( h );
 	}
-
+	
 	private void processRACommand ( Intent intent ) {
 		String action = intent.getAction();
 		String command = RequestCommands.None;
@@ -118,6 +120,8 @@ public class UpdateService extends IntentService {
 			// controller
 			h.setHost( raprefs.getHost() );
 			h.setPort( raprefs.getPort() );
+			h.setWifiUsername( raprefs.getDeviceWifiUsername() );
+			h.setWifiPassword( raprefs.getDeviceWifiPassword() );
 		} else {
 			// reeefangel.com
 			h.setUserId( raprefs.getUserId() );
@@ -168,6 +172,15 @@ public class UpdateService extends IntentService {
 				h.setReadLocation( location );
 			else
 				h.setWriteLocation( location, value );
+		} else if ( action.equals( MessageCommands.OVERRIDE_SEND_INTENT ) ) {
+			if ( !isController ) {
+				notControllerMessage();
+				return;
+			}
+			int value = intent.getIntExtra(MessageCommands.OVERRIDE_SEND_VALUE_INT, 0);
+			int location = intent.getIntExtra( MessageCommands.OVERRIDE_SEND_LOCATION_INT, Globals.OVERRIDE_DISABLE );
+			h.setCommand( RequestCommands.PwmOverride );
+			h.setOverrideChannel( location, value );
 		} else if ( action.equals( MessageCommands.LABEL_QUERY_INTENT ) ) {
 			// set the userid
 			h.setUserId( raprefs.getUserId() );
@@ -179,6 +192,14 @@ public class UpdateService extends IntentService {
 			}
 			h.setCommand( intent
 					.getStringExtra( MessageCommands.COMMAND_SEND_STRING ) );
+		} else if ( action.equals( MessageCommands.CALIBRATE_SEND_INTENT ) ) {
+			if ( !isController ) {
+				notControllerMessage();
+				return;
+			}
+			h.setCommand( RequestCommands.Calibrate );
+			h.setCalibrateType( intent.getIntExtra(MessageCommands.CALIBRATE_SEND_LOCATION_INT, 
+			                                       Globals.CALIBRATE_PH) );
 		} else if ( action.equals( MessageCommands.VERSION_QUERY_INTENT ) ) {
 			if ( !isController ) {
 				notControllerMessage();

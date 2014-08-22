@@ -21,6 +21,8 @@ public class Host {
 	private int timeoutConnect;
 	private int timeoutRead;
 	private String raUserid;
+	private String wifiUsername;
+	private String wifiPassword;
 
 	private final String RAPARAMS =
 			"http://forum.reefangel.com/status/params.aspx?id=";
@@ -58,13 +60,13 @@ public class Host {
 		this.host = host;
 		this.port = port;
 		this.command = command;
-		//timeoutConnect = 15000; // milliseconds
-		//timeoutRead = 10000; // milliseconds
 		location = 0;
 		value = 0;
 		write = false;
 		raUserid = "";
 		labels = false;
+		wifiUsername = "";
+		wifiPassword = "";
 	}
 
 	public void setHost ( String host ) {
@@ -82,7 +84,36 @@ public class Host {
 	public String getCommand ( ) {
 		return this.command;
 	}
-
+	
+	public void setWifiUsername ( String username ) {
+		this.wifiUsername = username;
+	}
+	
+	public String getWifiUsername ( ) {
+		return this.wifiUsername;
+	}
+	
+	public void setWifiPassword ( String password ) {
+		this.wifiPassword = password;
+	}
+	
+	public String getWifiPassword ( ) {
+		return this.wifiPassword;
+	}
+	
+	public String getDeviceAuthenticationString ( ) {
+		return wifiUsername + ":" + wifiPassword;
+	}
+	
+	public boolean isDeviceAuthenticationEnabled ( ) {
+		// if either the password or username are empty, 
+		// device authentication is not enabled
+		if ( wifiPassword.equals( "" ) || wifiUsername.equals( "" ) ) {
+			return false;
+		}
+		return true;
+	}
+	
 	public void setUserId ( String userid ) {
 		raUserid = userid;
 		setCommand( RequestCommands.ReefAngel );
@@ -129,6 +160,23 @@ public class Host {
 	public boolean isWrite ( ) {
 		return this.write;
 	}
+	
+	public void setOverrideChannel ( int port, int value ) {
+		this.location = port;
+		this.value = value;
+	}
+	
+	public int getOverrideChannel ( ) {
+		return this.location;
+	}
+	
+	public void setCalibrateType ( int type ) {
+		this.location = type;
+	}
+	
+	public int getCalibrateType ( ) {
+		return this.location;
+	}
 
 	public String toString ( ) {
 		// TODO improve error message with a null host string
@@ -145,22 +193,27 @@ public class Host {
 				|| (command.equals( RequestCommands.LightsOn ))
 				|| (command.equals( RequestCommands.LightsOff ))
 				|| (command.equals( RequestCommands.Reboot )) ) {
-			s =
-					new String( String.format(	"http://%s:%d%s", host, port,
+			s = new String( String.format(	"http://%s:%d%s", host, port,
 												command ) );
 		} else if ( (command.equals( RequestCommands.MemoryInt ))
 					|| (command.equals( RequestCommands.MemoryByte )) ) {
 			if ( write ) {
-				s =
-						new String( String.format(	"http://%s:%d%s%d,%d",
+				s = new String( String.format(	"http://%s:%d%s%d,%d",
 													host,
 													port, command, location,
 													value ) );
 			} else {
-				s =
-						new String( String.format(	"http://%s:%d%s%d", host,
+				s = new String( String.format(	"http://%s:%d%s%d", host,
 													port, command, location ) );
 			}
+		} else if ( command.equals( RequestCommands.Calibrate ) ) {
+			s = new String ( String.format( "http://%s:%d%s%d",
+			                                host, port,
+			                                command, location) );
+		} else if ( command.equals( RequestCommands.PwmOverride ) ) {
+			s = new String ( String.format( "http://%s:%d%s%d,%d",
+			                                host, port,
+			                                command, location, value) );
 		} else if ( command.equals( RequestCommands.ReefAngel ) ) {
 			String encodedId;
 			try {

@@ -1,5 +1,9 @@
 package info.curtbinder.reefangel.controller;
 
+import info.curtbinder.reefangel.phone.Globals;
+
+import java.util.Locale;
+
 
 /*
  * Copyright (c) 2011-13 by Curt Binder (http://curtbinder.info)
@@ -10,7 +14,7 @@ package info.curtbinder.reefangel.controller;
  */
 
 public class Controller {
-	public static final byte MAX_CONTROLLER_VALUES = 12;
+	public static final byte MAX_CONTROLLER_VALUES = 17;
 	public static final byte MAX_EXPANSION_RELAYS = 8;
 	public static final byte MAX_RELAY_PORTS = 8;
 	public static final byte MAX_TEMP_SENSORS = 3;
@@ -20,7 +24,12 @@ public class Controller {
 	public static final byte MAX_IO_CHANNELS = 6;
 	public static final byte MAX_RADION_LIGHT_CHANNELS = 6;
 	public static final byte MAX_VORTECH_VALUES = 3;
-
+	public static final byte MAX_WATERLEVEL_PORTS = 5;
+	public static final byte MAX_STATUS_FLAGS = 3;
+	public static final byte MAX_ALERT_FLAGS = 4;
+	public static final byte MAX_SCPWM_EXPANSION_PORTS = 16;
+	
+	// First set of expansion modules - EM
 	public static final short MODULE_DIMMING = 1 << 0;
 	public static final short MODULE_RF = 1 << 1;
 	public static final short MODULE_AI = 1 << 2;
@@ -29,7 +38,23 @@ public class Controller {
 	public static final short MODULE_IO = 1 << 5;
 	public static final short MODULE_PHEXPANSION = 1 << 6;
 	public static final short MODULE_WATERLEVEL = 1 << 7;
-
+	
+	// Second set of expansion modules - EM1
+	public static final short MODULE_HUMIDITY = 1 << 0;
+	public static final short MODULE_DCPUMP = 1 << 1;
+	public static final short MODULE_LEAKDETECTOR = 1 << 2;
+	
+	// Status flags - SF
+	public static final short SF_LIGHTSON = 1 << 0;
+	public static final short SF_FEEDING = 1 << 1;
+	public static final short SF_WATERCHANGE = 1 << 2;
+	
+	// Alert flags - AF
+	public static final short AF_ATOTIMEOUT = 1 << 0;
+	public static final short AF_OVERHEAT = 1 << 1;
+	public static final short AF_BUSLOCK = 1 << 2;
+	public static final short AF_LEAK = 1 << 3;
+	
 	// AI channels
 	public static final byte AI_WHITE = 0;
 	public static final byte AI_BLUE = 1;
@@ -54,23 +79,28 @@ public class Controller {
 	private NumberWithLabel pHExp;
 	private boolean atoLow;
 	private boolean atoHigh;
-	private ShortWithLabel pwmA;
-	private ShortWithLabel pwmD;
-	private ShortWithLabel waterlevel;
+	private ShortWithLabelOverride pwmA;
+	private ShortWithLabelOverride pwmD;
+	private ShortWithLabel[] waterlevel;
+	private ShortWithLabel humidity;
 	private NumberWithLabel salinity;
 	private NumberWithLabel orp;
 	private Relay main;
 	private byte qtyExpansionRelays;
 	private Relay[] expansionRelays;
 	private short expansionModules;
+	private short expansionModules1;
 	private short relayExpansionModules;
+	private short flagsAlert;
+	private short flagsStatus;
 	private short ioChannels;
 	private String[] ioChannelsLabels;
-	private ShortWithLabel[] pwmExpansion;
-	private short[] aiChannels;
-	private short[] radionChannels;
+	private ShortWithLabelOverride[] pwmExpansion;
+	private ShortWithLabelOverride[] aiChannels;
+	private ShortWithLabelOverride[] radionChannels;
 	private ShortWithLabel[] customVariables;
 	private short[] vortechValues;
+	private ShortWithLabelOverride[] pwmSCExpansion;
 
 	public Controller () {
 		init();
@@ -92,13 +122,17 @@ public class Controller {
 		pHExp = new NumberWithLabel( (byte) 2 );
 		atoLow = false;
 		atoHigh = false;
-		pwmA = new ShortWithLabel();
-		pwmD = new ShortWithLabel();
-		pwmExpansion = new ShortWithLabel[MAX_PWM_EXPANSION_PORTS];
+		pwmA = new ShortWithLabelOverride();
+		pwmD = new ShortWithLabelOverride();
+		pwmExpansion = new ShortWithLabelOverride[MAX_PWM_EXPANSION_PORTS];
 		for ( i = 0; i < MAX_PWM_EXPANSION_PORTS; i++ ) {
-			pwmExpansion[i] = new ShortWithLabel();
+			pwmExpansion[i] = new ShortWithLabelOverride();
 		}
-		waterlevel = new ShortWithLabel();
+		waterlevel = new ShortWithLabel[MAX_WATERLEVEL_PORTS];
+		for ( i = 0; i < MAX_WATERLEVEL_PORTS; i++ ) {
+			waterlevel[i] = new ShortWithLabel();
+		}
+		humidity = new ShortWithLabel();
 		salinity = new NumberWithLabel( (byte) 1 );
 		orp = new NumberWithLabel();
 		main = new Relay();
@@ -108,19 +142,22 @@ public class Controller {
 		}
 		qtyExpansionRelays = 0;
 		expansionModules = 0;
+		expansionModules1 = 0;
 		relayExpansionModules = 0;
+		flagsStatus = 0;
+		flagsAlert = 0;
 		ioChannels = 0;
 		ioChannelsLabels = new String[MAX_IO_CHANNELS];
 		for ( i = 0; i < MAX_IO_CHANNELS; i++ ) {
 			ioChannelsLabels[i] = "";
 		}
-		aiChannels = new short[MAX_AI_CHANNELS];
+		aiChannels = new ShortWithLabelOverride[MAX_AI_CHANNELS];
 		for ( i = 0; i < MAX_AI_CHANNELS; i++ ) {
-			aiChannels[i] = 0;
+			aiChannels[i] = new ShortWithLabelOverride();
 		}
-		radionChannels = new short[MAX_RADION_LIGHT_CHANNELS];
+		radionChannels = new ShortWithLabelOverride[MAX_RADION_LIGHT_CHANNELS];
 		for ( i = 0; i < MAX_RADION_LIGHT_CHANNELS; i++ ) {
-			radionChannels[i] = 0;
+			radionChannels[i] = new ShortWithLabelOverride();
 		}
 		customVariables = new ShortWithLabel[MAX_CUSTOM_VARIABLES];
 		for ( i = 0; i < MAX_CUSTOM_VARIABLES; i++ ) {
@@ -129,6 +166,10 @@ public class Controller {
 		vortechValues = new short[MAX_VORTECH_VALUES];
 		for ( i = 0; i < MAX_VORTECH_VALUES; i++ ) {
 			vortechValues[i] = 0;
+		}
+		pwmSCExpansion = new ShortWithLabelOverride[MAX_SCPWM_EXPANSION_PORTS];
+		for ( i = 0; i < MAX_SCPWM_EXPANSION_PORTS; i++ ) {
+			pwmSCExpansion[i] = new ShortWithLabelOverride();
 		}
 	}
 
@@ -251,6 +292,14 @@ public class Controller {
 	public short getPwmA ( ) {
 		return pwmA.getData();
 	}
+	
+	public short getPwmAOverride ( ) {
+		return pwmA.getOverrideValue();
+	}
+	
+	public void setPwmAOverride ( short v ) {
+		pwmA.setOverride( v );
+	}
 
 	public void setPwmALabel ( String label ) {
 		pwmA.setLabel( label );
@@ -266,6 +315,14 @@ public class Controller {
 
 	public short getPwmD ( ) {
 		return pwmD.getData();
+	}
+	
+	public short getPwmDOverride ( ) {
+		return pwmD.getOverrideValue();
+	}
+	
+	public void setPwmDOverride ( short v ) {
+		pwmD.setOverride( v );
 	}
 
 	public void setPwmDLabel ( String label ) {
@@ -283,6 +340,15 @@ public class Controller {
 	public short getPwmExpansion ( short channel ) {
 		return pwmExpansion[channel].getData();
 	}
+	
+	
+	public short getPwmExpansionOverride ( short channel ) {
+		return pwmExpansion[channel].getOverrideValue();
+	}
+	
+	public void setPwmExpansionOverride ( short channel, short v ) {
+		pwmExpansion[channel].setOverride( v );
+	}
 
 	public void setPwmExpansionLabel ( short channel, String label ) {
 		pwmExpansion[channel].setLabel( label );
@@ -292,22 +358,62 @@ public class Controller {
 		return pwmExpansion[channel].getLabel();
 	}
 
-	public void setWaterLevel ( short value ) {
-		waterlevel.setData( value );
+	public void setSCPwmExpansion ( short channel, short v ) {
+		pwmSCExpansion[channel].setData( v );
 	}
 
-	public short getWaterLevel ( ) {
-		return waterlevel.getData();
+	public short getSCPwmExpansion ( short channel ) {
+		return pwmSCExpansion[channel].getData();
+	}
+	
+	public short getSCPwmExpansionOverride ( short channel ) {
+		return pwmSCExpansion[channel].getOverrideValue();
+	}
+	
+	public void setSCPwmExpansionOverride ( short channel, short v ) {
+		pwmSCExpansion[channel].setOverride( v );
 	}
 
-	public void setWaterLevelLabel ( String label ) {
-		waterlevel.setLabel( label );
+	public void setSCPwmExpansionLabel ( short channel, String label ) {
+		pwmSCExpansion[channel].setLabel( label );
 	}
 
-	public String getWaterLevelLabel ( ) {
-		return waterlevel.getLabel();
+	public String getSCPwmExpansionLabel ( short channel ) {
+		return pwmSCExpansion[channel].getLabel();
+	}
+	
+	public void setWaterLevel ( short port, short value ) {
+		waterlevel[port].setData( value );
+	}
+	
+	public short getWaterLevel ( short port ) {
+		return waterlevel[port].getData();
+	}
+	
+	public void setWaterLevelLabel ( short port, String label ) {
+		waterlevel[port].setLabel( label );
+	}
+	
+	public String getWaterLevelLabel ( short port ) {
+		return waterlevel[port].getLabel();
 	}
 
+	public void setHumidity ( short value ) {
+		humidity.setData( value );
+	}
+	
+	public short getHumidity ( ) {
+		return humidity.getData();
+	}
+	
+	public void setHumidityLabel ( String label ) {
+		humidity.setLabel( label );
+	}
+	
+	public String getHumidityLabel ( ) {
+		return humidity.getLabel();
+	}
+	
 	public void setSalinity ( int value ) {
 		salinity.setData( value );
 	}
@@ -401,19 +507,35 @@ public class Controller {
 	}
 
 	public short getAIChannel ( byte channel ) {
-		return aiChannels[channel];
+		return aiChannels[channel].getData();
 	}
 
 	public void setAIChannel ( byte channel, short value ) {
-		aiChannels[channel] = value;
+		aiChannels[channel].setData( value );
+	}
+	
+	public short getAIChannelOverride ( byte channel ) {
+		return aiChannels[channel].getOverrideValue();
+	}
+	
+	public void setAIChannelOverride ( byte channel, short value ) {
+		aiChannels[channel].setOverride( value );
 	}
 
 	public short getRadionChannel ( byte channel ) {
-		return radionChannels[channel];
+		return radionChannels[channel].getData();
 	}
 
 	public void setRadionChannel ( byte channel, short value ) {
-		radionChannels[channel] = value;
+		radionChannels[channel].setData( value );
+	}
+	
+	public short getRadionChannelOverride ( byte channel ) {
+		return radionChannels[channel].getOverrideValue();
+	}
+	
+	public void setRadionChannelOverride ( byte channel, short value ) {
+		radionChannels[channel].setOverride( value );;
 	}
 
 	public short getVortechValue ( byte type ) {
@@ -432,6 +554,14 @@ public class Controller {
 		expansionModules = em;
 	}
 
+	public short getExpansionModules1 ( ) {
+		return expansionModules1;
+	}
+	
+	public void setExpansionModules1 ( short em1 ) {
+		expansionModules1 = em1;
+	}
+	
 	public static boolean isDimmingModuleInstalled ( short expansionModules ) {
 		return (expansionModules & MODULE_DIMMING) == MODULE_DIMMING;
 	}
@@ -463,6 +593,18 @@ public class Controller {
 	public static boolean isWaterLevelModuleInstalled ( short expansionModules ) {
 		return (expansionModules & MODULE_WATERLEVEL) == MODULE_WATERLEVEL;
 	}
+	
+	public static boolean isHumidityModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_HUMIDITY) == MODULE_HUMIDITY;
+	}
+	
+	public static boolean isDCPumpControlModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_DCPUMP) == MODULE_DCPUMP;
+	}
+	
+	public static boolean isLeakDetectorModuleInstalled ( short expansionModules1 ) {
+		return (expansionModules1 & MODULE_LEAKDETECTOR) == MODULE_LEAKDETECTOR;
+	}
 
 	public short getRelayExpansionModules ( ) {
 		return relayExpansionModules;
@@ -483,6 +625,50 @@ public class Controller {
 		return qty;
 	}
 
+	public void setStatusFlags ( short flags ) {
+		flagsStatus = flags;
+	}
+	
+	public short getStatusFlags ( ) {
+		return flagsStatus;
+	}
+	
+	public static boolean isLightsOnFlagSet ( short flags ) {
+		return (flags & SF_LIGHTSON) == SF_LIGHTSON;
+	}
+	
+	public static boolean isFeedingFlagSet ( short flags ) {
+		return (flags & SF_FEEDING) == SF_FEEDING;
+	}
+	
+	public static boolean isWaterChangeFlagSet ( short flags ) {
+		return (flags & SF_WATERCHANGE) == SF_WATERCHANGE;
+	}
+	
+	public void setAlertFlags ( short flags ) {
+		flagsAlert = flags;
+	}
+	
+	public short getAlertFlags ( ) {
+		return flagsAlert;
+	}
+	
+	public static boolean isATOTimeoutFlagSet ( short flags ) {
+		return (flags & AF_ATOTIMEOUT) == AF_ATOTIMEOUT;
+	}
+	
+	public static boolean isOverheatFlagSet ( short flags ) {
+		return (flags & AF_OVERHEAT) == AF_OVERHEAT;
+	}
+	
+	public static boolean isBusLockFlagSet ( short flags ) {
+		return (flags & AF_BUSLOCK) == AF_BUSLOCK;
+	}
+	
+	public static boolean isLeakFlagSet ( short flags ) {
+		return (flags & AF_LEAK) == AF_LEAK;
+	}
+	
 	public short getIOChannels ( ) {
 		return ioChannels;
 	}
@@ -505,5 +691,32 @@ public class Controller {
 		int w = (ioChannels & v);
 		boolean f = w == v;
 		return f;
+	}
+	
+	public static boolean isPWMOverrideEnabled( short value, short override ) {
+		// above 100% (max value), so the override is disabled
+		if ( override > Globals.OVERRIDE_MAX_VALUE ) {
+			return false;
+		}
+		return true;
+	}
+	
+	public static short getPWMValueFromOverride ( short data, short override ) {
+		short v;
+		if ( isPWMOverrideEnabled(data, override) ) {
+			v = override;
+		} else {
+			v = data;
+		}
+		//Log.d("getPWMValueFromOverride", "data: " + data + " override: " + override + " return: " + v);
+		return v;
+	}
+	
+	public static String getPWMDisplayValue( short data, short override ) {
+		String s = String.format(Locale.getDefault(), "%d%%", getPWMValueFromOverride(data, override));
+		if ( isPWMOverrideEnabled(data, override) ) {
+			s = "**" + s;
+		}
+		return s;
 	}
 }

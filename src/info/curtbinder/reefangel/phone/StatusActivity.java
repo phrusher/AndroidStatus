@@ -17,10 +17,12 @@ import info.curtbinder.reefangel.phone.pages.CommandsPage;
 import info.curtbinder.reefangel.phone.pages.ControllerPage;
 import info.curtbinder.reefangel.phone.pages.CustomPage;
 import info.curtbinder.reefangel.phone.pages.DimmingPage;
+import info.curtbinder.reefangel.phone.pages.FlagsPage;
 import info.curtbinder.reefangel.phone.pages.IOPage;
 import info.curtbinder.reefangel.phone.pages.RAPage;
 import info.curtbinder.reefangel.phone.pages.RadionPage;
 import info.curtbinder.reefangel.phone.pages.RelayBoxPage;
+import info.curtbinder.reefangel.phone.pages.SCDimmingPage;
 import info.curtbinder.reefangel.phone.pages.VortechPage;
 import info.curtbinder.reefangel.service.MessageCommands;
 import info.curtbinder.reefangel.service.UpdateService;
@@ -35,6 +37,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
@@ -43,10 +46,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
 
 public class StatusActivity extends BaseActivity implements
 		ActionBar.OnNavigationListener {
@@ -63,21 +67,23 @@ public class StatusActivity extends BaseActivity implements
 	private CustomPagerAdapter pagerAdapter;
 	private String[] vortechModes;
 	private View[] appPages;
-	// minimum number of pages: status, main relay
-	private static final int MIN_PAGES = 3;
+	// minimum number of pages: commands, flags, status, main relay
+	private static final int MIN_PAGES = 4;
 
 	private static final int POS_START = 0;
 
-	private static final int POS_COMMANDS = POS_START;
-	private static final int POS_CONTROLLER = POS_START + 1;
+	private static final int POS_FLAGS = POS_START;
+	private static final int POS_COMMANDS = POS_START + 1;
+	private static final int POS_CONTROLLER = POS_START + 2;
 
 	private static final int POS_MODULES = POS_CONTROLLER + 10;
 	private static final int POS_DIMMING = POS_MODULES;
-	private static final int POS_RADION = POS_MODULES + 1;
-	private static final int POS_VORTECH = POS_MODULES + 2;
-	private static final int POS_AI = POS_MODULES + 3;
-	private static final int POS_IO = POS_MODULES + 4;
-	private static final int POS_CUSTOM = POS_MODULES + 5;
+	private static final int POS_SC_DIMMING = POS_MODULES + 1;
+	private static final int POS_RADION = POS_MODULES + 2;
+	private static final int POS_VORTECH = POS_MODULES + 3;
+	private static final int POS_AI = POS_MODULES + 4;
+	private static final int POS_IO = POS_MODULES + 5;
+	private static final int POS_CUSTOM = POS_MODULES + 6;
 
 	private static final int POS_MAIN_RELAY = POS_CONTROLLER + 1;
 	private static final int POS_EXP1_RELAY = POS_MAIN_RELAY + 1;
@@ -92,8 +98,10 @@ public class StatusActivity extends BaseActivity implements
 	private static final int POS_END = POS_CUSTOM + 1;
 
 	private CommandsPage pageCommands;
+	private FlagsPage pageFlags;
 	private ControllerPage pageController;
 	private DimmingPage pageDimming;
+	private SCDimmingPage pageSCDimming;
 	private RadionPage pageRadion;
 	private VortechPage pageVortech;
 	private AIPage pageAI;
@@ -118,9 +126,13 @@ public class StatusActivity extends BaseActivity implements
 		filter = new IntentFilter( MessageCommands.UPDATE_DISPLAY_DATA_INTENT );
 		filter.addAction( MessageCommands.UPDATE_STATUS_INTENT );
 		filter.addAction( MessageCommands.ERROR_MESSAGE_INTENT );
-		filter.addAction( MessageCommands.VORTECH_UPDATE_INTENT );
+		filter.addAction( MessageCommands.VORTECH_POPUP_INTENT );
 		filter.addAction( MessageCommands.MEMORY_RESPONSE_INTENT );
 		filter.addAction( MessageCommands.COMMAND_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.VERSION_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.OVERRIDE_RESPONSE_INTENT );
+		filter.addAction( MessageCommands.OVERRIDE_POPUP_INTENT );
+		filter.addAction( MessageCommands.CALIBRATE_RESPONSE_INTENT );
 
 		vortechModes =
 				getResources().getStringArray( R.array.vortechModeLabels );
@@ -177,6 +189,10 @@ public class StatusActivity extends BaseActivity implements
 
 		updateViewsVisibility();
 		updateDisplay();
+		
+		if ( rapp.raprefs.isKeepScreenOnEnabled() ) {
+			getWindow().addFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
+		}
 
 		// the last thing we do is display the changelog if necessary
 		rapp.displayChangeLog( this );
@@ -185,13 +201,17 @@ public class StatusActivity extends BaseActivity implements
 	private void setNavigationList ( ) {
 		// set list navigation items
 		final ActionBar ab = getSupportActionBar();
-		final Context context = ab.getThemedContext();
-		final int arrayID = rapp.isAwayProfileEnabled() ? R.array.profileLabels : R.array.profileLabelsHomeOnly;
-		
+		Context context = ab.getThemedContext();
+		int arrayID;
+		if ( rapp.isAwayProfileEnabled() ) {
+			arrayID = R.array.profileLabels;
+		} else {
+			arrayID = R.array.profileLabelsHomeOnly;
+		}
 		ArrayAdapter<CharSequence> list =
 				ArrayAdapter
 						.createFromResource(	context, arrayID,
-								R.layout.support_simple_spinner_dropdown_item );
+												R.layout.support_simple_spinner_dropdown_item );
 		list.setDropDownViewResource( R.layout.support_simple_spinner_dropdown_item );
 		ab.setListNavigationCallbacks( list, this );
 		ab.setSelectedNavigationItem( rapp.getSelectedProfile() );
@@ -200,8 +220,10 @@ public class StatusActivity extends BaseActivity implements
 	private void createViews ( ) {
 		Context ctx = rapp.getBaseContext();
 		pageCommands = new CommandsPage( ctx );
+		pageFlags = new FlagsPage( ctx );
 		pageController = new ControllerPage( ctx );
 		pageDimming = new DimmingPage( ctx );
+		pageSCDimming = new SCDimmingPage( ctx );
 		pageRadion = new RadionPage( ctx );
 		pageVortech = new VortechPage( ctx );
 		pageAI = new AIPage( ctx );
@@ -253,21 +275,26 @@ public class StatusActivity extends BaseActivity implements
 		setControllerLabels();
 
 		setRelayLabels();
-
+		int i;
 		if ( rapp.raprefs.getDimmingModuleEnabled() ) {
-			for ( int i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ )
+			for ( i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ )
 				pageDimming.setLabel( i, rapp.raprefs
 						.getDimmingModuleChannelLabel( i ) );
 		}
 
+		if ( rapp.raprefs.getSCDimmingModuleEnabled() ) {
+			for ( i = 0; i < Controller.MAX_SCPWM_EXPANSION_PORTS; i++ )
+				pageSCDimming.setLabel( i, rapp.raprefs
+				                        .getSCDimmingModuleChannelLabel(i) );
+		}
 		if ( rapp.raprefs.getIOModuleEnabled() ) {
-			for ( int i = 0; i < Controller.MAX_IO_CHANNELS; i++ ) {
+			for ( i = 0; i < Controller.MAX_IO_CHANNELS; i++ ) {
 				pageIO.setLabel( i, rapp.raprefs.getIOModuleChannelLabel( i ) );
 			}
 		}
 
 		if ( rapp.raprefs.getCustomModuleEnabled() ) {
-			for ( int i = 0; i < Controller.MAX_CUSTOM_VARIABLES; i++ )
+			for ( i = 0; i < Controller.MAX_CUSTOM_VARIABLES; i++ )
 				pageCustom.setLabel( i, rapp.raprefs
 						.getCustomModuleChannelLabel( i ) );
 		}
@@ -314,8 +341,23 @@ public class StatusActivity extends BaseActivity implements
 									rapp.raprefs.getPHExpLabel(),
 									getString( R.string.labelPHExp ) );
 		pageController.setLabel(	ControllerPage.WL_INDEX,
-									rapp.raprefs.getWaterLevelLabel(),
-									getString( R.string.labelWaterLevel ) );
+									rapp.raprefs.getWaterLevelLabel(0),
+									rapp.raprefs.getWaterLevelDefaultLabel(0) );
+		pageController.setLabel(	ControllerPage.WL1_INDEX,
+									rapp.raprefs.getWaterLevelLabel(1),
+									rapp.raprefs.getWaterLevelDefaultLabel(1) );
+		pageController.setLabel(	ControllerPage.WL2_INDEX,
+									rapp.raprefs.getWaterLevelLabel(2),
+									rapp.raprefs.getWaterLevelDefaultLabel(2) );
+		pageController.setLabel(	ControllerPage.WL3_INDEX,
+									rapp.raprefs.getWaterLevelLabel(3),
+									rapp.raprefs.getWaterLevelDefaultLabel(3) );
+		pageController.setLabel(	ControllerPage.WL4_INDEX,
+									rapp.raprefs.getWaterLevelLabel(4),
+									rapp.raprefs.getWaterLevelDefaultLabel(4) );
+		pageController.setLabel( ControllerPage.HUMIDITY_INDEX, 
+		                         rapp.raprefs.getHumidityLabel(), 
+		                         getString(R.string.labelHumidity) );
 	}
 
 	private void setRelayLabels ( ) {
@@ -364,7 +406,17 @@ public class StatusActivity extends BaseActivity implements
 		pageController.setVisibility(	ControllerPage.PHE_INDEX,
 										rapp.raprefs.getPHExpVisibility() );
 		pageController.setVisibility(	ControllerPage.WL_INDEX,
-										rapp.raprefs.getWaterLevelVisibility() );
+										rapp.raprefs.getWaterLevelVisibility(0) );
+		pageController.setVisibility(	ControllerPage.WL1_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(1) );
+		pageController.setVisibility(	ControllerPage.WL2_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(2) );
+		pageController.setVisibility(	ControllerPage.WL3_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(3) );
+		pageController.setVisibility(	ControllerPage.WL4_INDEX,
+										rapp.raprefs.getWaterLevelVisibility(4) );
+		pageController.setVisibility( ControllerPage.HUMIDITY_INDEX, 
+		                              rapp.raprefs.getHumidityVisibility() );
 	}
 
 	@Override
@@ -404,19 +456,33 @@ public class StatusActivity extends BaseActivity implements
 		String[] ai;
 		String[] io;
 		String[] custom;
-		short r, ron, roff, newEM, newREM;
+		String[] scpwme;
+		short r, ron, roff, newEM, newEM1, newREM, apValue, dpValue, af, sf;
+		short[] pwmeValues = new short[Controller.MAX_PWM_EXPANSION_PORTS];
+		short[] radionValues = new short[Controller.MAX_RADION_LIGHT_CHANNELS];
+		short[] aiValues = new short[Controller.MAX_AI_CHANNELS];
 		short[] expr = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] expron = new short[Controller.MAX_EXPANSION_RELAYS];
 		short[] exproff = new short[Controller.MAX_EXPANSION_RELAYS];
+		short[] vtValues = new short[Controller.MAX_VORTECH_VALUES];
+		short[] scpwmeValues = new short[Controller.MAX_SCPWM_EXPANSION_PORTS];
 
 		if ( c.moveToFirst() ) {
 			updateStatus =
 					c.getString( c.getColumnIndex( StatusTable.COL_LOGDATE ) );
 			values = getControllerValues( c );
-			pwme = getPWMEValues( c );
-			rf = getRadionValues( c );
-			vt = getVortechValues( c );
-			ai = getAIValues( c );
+			apValue = c.getShort( c.getColumnIndex( StatusTable.COL_AP ) );
+			dpValue = c.getShort( c.getColumnIndex(  StatusTable.COL_DP ) );
+			pwme = getPWMETextValues( c );
+			pwmeValues = getPWMEValues( c );
+			scpwme = getSCPWMETextValues( c );
+			scpwmeValues = getSCPWMEValues( c );
+			rf = getRadionTextValues( c );
+			radionValues = getRadionValues( c );
+			vt = getVortechTextValues( c );
+			vtValues = getVortechValues( c );
+			ai = getAITextValues( c );
+			aiValues = getAIValues( c );
 			io = getIOValues( c );
 			custom = getCustomValues( c );
 			r = c.getShort( c.getColumnIndex( StatusTable.COL_RDATA ) );
@@ -464,29 +530,58 @@ public class StatusActivity extends BaseActivity implements
 			exproff[7] =
 					c.getShort( c.getColumnIndex( StatusTable.COL_R8OFFMASK ) );
 			newEM = c.getShort( c.getColumnIndex( StatusTable.COL_EM ) );
+			newEM1 = c.getShort( c.getColumnIndex( StatusTable.COL_EM1 ) );
 			newREM = c.getShort( c.getColumnIndex( StatusTable.COL_REM ) );
+			sf = c.getShort( c.getColumnIndex( StatusTable.COL_SF ) );
+			af = c.getShort( c.getColumnIndex( StatusTable.COL_AF ) );
 		} else {
 			updateStatus = getString( R.string.messageNever );
 			values = getNeverValues( Controller.MAX_CONTROLLER_VALUES );
 			pwme = getNeverValues( Controller.MAX_PWM_EXPANSION_PORTS );
+			scpwme = getNeverValues( Controller.MAX_SCPWM_EXPANSION_PORTS );
 			rf = getNeverValues( Controller.MAX_RADION_LIGHT_CHANNELS );
 			vt = getNeverValues( Controller.MAX_VORTECH_VALUES );
 			ai = getNeverValues( Controller.MAX_AI_CHANNELS );
 			io = getNeverValues( Controller.MAX_IO_CHANNELS );
 			custom = getNeverValues( Controller.MAX_CUSTOM_VARIABLES );
-			r = ron = roff = newEM = newREM = 0;
-			for ( int i = 0; i < Controller.MAX_EXPANSION_RELAYS; i++ ) {
+			r = ron = roff = newEM = newEM1 = newREM = apValue = dpValue = sf = af = 0;
+			int i;
+			for ( i = 0; i < Controller.MAX_EXPANSION_RELAYS; i++ ) {
 				expr[i] = expron[i] = exproff[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_PWM_EXPANSION_PORTS; i++ ) {
+				pwmeValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_SCPWM_EXPANSION_PORTS; i++ ) {
+				scpwmeValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_RADION_LIGHT_CHANNELS; i++ ) {
+				radionValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_AI_CHANNELS; i++ ) {
+				aiValues[i] = 0;
+			}
+			for ( i = 0; i < Controller.MAX_VORTECH_VALUES; i++ ) {
+				vtValues[i] = 0;
 			}
 		}
 		c.close();
 		
 		updateTime.setText( updateStatus );
 		pageController.updateDisplay( values );
+		pageController.updatePWMValues( apValue, dpValue );
+		pageFlags.updateStatus( sf );
+		pageFlags.updateAlert( af );
 		pageDimming.updateDisplay( pwme );
+		pageDimming.updatePWMValues( pwmeValues );
+		pageSCDimming.updateDisplay( scpwme );
+		pageSCDimming.updatePWMValues( scpwmeValues );
 		pageRadion.updateDisplay( rf );
+		pageRadion.updatePWMValues( radionValues );
 		pageVortech.updateDisplay( vt );
+		pageVortech.updateValues( vtValues );
 		pageAI.updateDisplay( ai );
+		pageAI.updatePWMValues( aiValues );
 		pageIO.updateDisplay( io );
 		pageCustom.updateDisplay( custom );
 		boolean fUseMask = rapp.raprefs.isCommunicateController();
@@ -498,7 +593,7 @@ public class StatusActivity extends BaseActivity implements
 		
 		if ( rapp.raprefs.isAutoUpdateModulesEnabled() ) {
 			// update the screen / pages if necessary
-			checkDeviceModules( newEM, newREM );
+			checkDeviceModules( newEM, newEM1, newREM );
 		}
 	}
 
@@ -522,39 +617,84 @@ public class StatusActivity extends BaseActivity implements
 			} else if ( action
 					.equals( MessageCommands.UPDATE_DISPLAY_DATA_INTENT ) ) {
 				updateDisplay();
-			} else if ( action.equals( MessageCommands.VORTECH_UPDATE_INTENT ) ) {
-				int type =
-						intent.getIntExtra( MessageCommands.VORTECH_UPDATE_TYPE,
-											0 );
-				Intent i =
-						new Intent( StatusActivity.this,
+			} else if ( action.equals( MessageCommands.VORTECH_POPUP_INTENT ) ) {
+				int type = intent.getIntExtra( VortechPopupActivity.TYPE, 0 );
+				int value = intent.getIntExtra( VortechPopupActivity.VALUE, 0 );
+				Intent i = new Intent( StatusActivity.this,
 							VortechPopupActivity.class );
 				i.putExtra( VortechPopupActivity.TYPE, type );
+				i.putExtra( VortechPopupActivity.VALUE, value );
 				i.putExtra( Globals.PRE10_LOCATIONS,
 							rapp.raprefs.useOldPre10MemoryLocations() );
 				startActivity( i );
 			} else if ( action.equals( MessageCommands.MEMORY_RESPONSE_INTENT ) ) {
+				// for vortech responses
 				String response =
 						intent.getStringExtra( MessageCommands.MEMORY_RESPONSE_STRING );
-				if ( response.equals( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
-					Toast.makeText( StatusActivity.this, response,
-									Toast.LENGTH_LONG ).show();
-				}
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.OVERRIDE_RESPONSE_INTENT ) ) {
+				String response = intent.getStringExtra(MessageCommands.OVERRIDE_RESPONSE_STRING);
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.OVERRIDE_POPUP_INTENT ) ) {
+				// message to display the popup
+				int channel = intent.getIntExtra( OverridePopupActivity.CHANNEL_KEY, 0);
+				String msg = rapp.getPWMOverrideMessageDisplay( channel );
+				Intent i = new Intent(StatusActivity.this, OverridePopupActivity.class);
+				i.putExtra( OverridePopupActivity.MESSAGE_KEY, msg ); 
+				i.putExtra( OverridePopupActivity.CHANNEL_KEY, channel);
+				i.putExtra( OverridePopupActivity.VALUE_KEY, 
+				            intent.getShortExtra( OverridePopupActivity.VALUE_KEY, (short) 0) );
+				startActivity(i);
 			} else if ( action.equals( MessageCommands.COMMAND_RESPONSE_INTENT ) ) {
 				String response =
 						intent.getStringExtra( MessageCommands.COMMAND_RESPONSE_STRING );
-				if ( response.contains( XMLTags.Ok ) ) {
-					updateTime.setText( R.string.statusRefreshNeeded );
-				} else {
-					Toast.makeText( StatusActivity.this, response,
-									Toast.LENGTH_LONG ).show();
-				}
+				displayResponse(response, -1, false);
+			} else if ( action.equals( MessageCommands.CALIBRATE_RESPONSE_INTENT ) ) {
+				String response =
+						intent.getStringExtra( MessageCommands.CALIBRATE_RESPONSE_STRING );
+				displayResponse(response, R.string.statusFinished, true );				
+			} else if ( action.equals( MessageCommands.VERSION_RESPONSE_INTENT ) ) {
+				// set the version button's text to the version of the software
+				((Button) findViewById( R.id.command_button_version ))
+				.setText( intent.getStringExtra( MessageCommands.VERSION_RESPONSE_STRING ) );
+				// TODO set the time to be the last updated time from the database
+				updateTime.setText( R.string.statusFinished );
 			}
 		}
 	}
-
+	
+	private void displayResponse ( String response, int stringId, boolean fAlwaysToast ) {
+		int msgId;
+		boolean fShowToast = false;
+		if ( stringId == -1 ) {
+			msgId = R.string.statusRefreshNeeded;
+		} else {
+			msgId = stringId;
+		}
+		if ( response.contains( XMLTags.Ok ) ) {
+			updateTime.setText( msgId );
+			if ( rapp.raprefs.isAutoRefreshAfterUpdate() ) {
+				updateTime.setText( R.string.statusWaiting );
+				Log.d(TAG, "AutoRefreshAfterUpdate");
+				Handler h = new Handler();
+				Runnable r = new Runnable() {
+					public void run() {
+						launchStatusTask();
+					}
+				};
+				// pause for a second before we proceed
+				h.postDelayed( r, 1000 );
+			}	
+		} else {
+			fShowToast = true;
+		}
+		
+		if ( fAlwaysToast || fShowToast ) {
+			Toast.makeText( StatusActivity.this, response,
+							Toast.LENGTH_LONG ).show();
+		}
+	}
+	
 	private String[] getNeverValues ( int qty ) {
 		String[] s = new String[qty];
 		for ( int i = 0; i < qty; i++ ) {
@@ -575,6 +715,10 @@ public class StatusActivity extends BaseActivity implements
 			h = getString( R.string.labelON ); // ACTIVE, GREEN, ON
 		else
 			h = getString( R.string.labelOFF ); // INACTIVE, RED, OFF
+		String apText = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AP) ),
+		                                               c.getShort( c.getColumnIndex(StatusTable.COL_PWMAO)));
+		String dpText = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_DP) ),
+		                                               c.getShort( c.getColumnIndex(StatusTable.COL_PWMDO)));
 		return new String[] {	c.getString( c
 										.getColumnIndex( StatusTable.COL_T1 ) ),
 								c.getString( c
@@ -583,12 +727,8 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_T3 ) ),
 								c.getString( c
 										.getColumnIndex( StatusTable.COL_PH ) ),
-								c.getString( c
-										.getColumnIndex( StatusTable.COL_DP ) )
-										+ "%",
-								c.getString( c
-										.getColumnIndex( StatusTable.COL_AP ) )
-										+ "%",
+								dpText,
+								apText,
 								l,
 								h,
 								c.getString( c
@@ -601,32 +741,138 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_PHE ) ),
 								c.getString( c
 										.getColumnIndex( StatusTable.COL_WL ) )
-										+ "%" };
+										+ "%",
+								c.getString( c
+										.getColumnIndex( StatusTable.COL_WL1 ) )
+										+ "%",
+								c.getString( c
+								        .getColumnIndex( StatusTable.COL_WL2 ) )
+										+ "%",
+								c.getString( c
+										.getColumnIndex( StatusTable.COL_WL3 ) )
+										+ "%",
+								c.getString( c
+								        .getColumnIndex( StatusTable.COL_WL4 ) )
+										+ "%",
+								c.getString( c.getColumnIndex( StatusTable.COL_HUM ) )
+								        + "%" };
 	}
 
-	private String[] getPWMEValues ( Cursor c ) {
+	private String[] getPWMETextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_PWM_EXPANSION_PORTS];
-		sa[0] = c.getString( c.getColumnIndex( StatusTable.COL_PWME0 ) ) + "%";
-		sa[1] = c.getString( c.getColumnIndex( StatusTable.COL_PWME1 ) ) + "%";
-		sa[2] = c.getString( c.getColumnIndex( StatusTable.COL_PWME2 ) ) + "%";
-		sa[3] = c.getString( c.getColumnIndex( StatusTable.COL_PWME3 ) ) + "%";
-		sa[4] = c.getString( c.getColumnIndex( StatusTable.COL_PWME4 ) ) + "%";
-		sa[5] = c.getString( c.getColumnIndex( StatusTable.COL_PWME5 ) ) + "%";
+		sa[0] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME0) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME0O)));
+		sa[1] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME1) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME1O)));
+		sa[2] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME2) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME2O)));
+		sa[3] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME3) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME3O)));
+		sa[4] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME4) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_PWME4O)));
+		sa[5] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_PWME5) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_PWME5O)));
 		return sa;
 	}
+	
+	private short[] getPWMEValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_PWM_EXPANSION_PORTS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME0) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME1) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME2) );
+		v[3] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME3) );
+		v[4] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME4) );
+		v[5] = c.getShort( c.getColumnIndex(StatusTable.COL_PWME5) );
+		return v;
+	}
 
-	private String[] getRadionValues ( Cursor c ) {
+	private String[] getSCPWMETextValues ( Cursor c ) {
+		String[] sa = new String[Controller.MAX_SCPWM_EXPANSION_PORTS];
+		sa[0] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME0) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME0O)));
+		sa[1] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME1) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME1O)));
+		sa[2] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME2) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME2O)));
+		sa[3] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME3) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME3O)));
+		sa[4] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME4) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME4O)));
+		sa[5] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME5) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME5O)));
+		sa[6] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME6) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME6O)));
+		sa[7] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME7) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME7O)));
+		sa[8] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME8) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME8O)));
+		sa[9] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME9) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME9O)));
+		sa[10] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME10) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME10O)));
+		sa[11] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME11) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME11O)));
+		sa[12] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME12) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME12O)));
+		sa[13] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME13) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME13O)));
+		sa[14] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME14) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME14O)));
+		sa[15] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME15) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME15O)));
+		return sa;
+	}
+	
+	private short[] getSCPWMEValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_SCPWM_EXPANSION_PORTS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME0) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME1) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME2) );
+		v[3] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME3) );
+		v[4] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME4) );
+		v[5] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME5) );
+		v[6] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME6) );
+		v[7] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME7) );
+		v[8] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME8) );
+		v[9] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME9) );
+		v[10] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME10) );
+		v[11] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME11) );
+		v[12] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME12) );
+		v[13] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME13) );
+		v[14] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME14) );
+		v[15] = c.getShort( c.getColumnIndex(StatusTable.COL_SCPWME15) );
+		return v;
+	}
+	
+	private String[] getRadionTextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_RADION_LIGHT_CHANNELS];
-		sa[0] = c.getString( c.getColumnIndex( StatusTable.COL_RFW ) ) + "%";
-		sa[1] = c.getString( c.getColumnIndex( StatusTable.COL_RFRB ) ) + "%";
-		sa[2] = c.getString( c.getColumnIndex( StatusTable.COL_RFR ) ) + "%";
-		sa[3] = c.getString( c.getColumnIndex( StatusTable.COL_RFG ) ) + "%";
-		sa[4] = c.getString( c.getColumnIndex( StatusTable.COL_RFB ) ) + "%";
-		sa[5] = c.getString( c.getColumnIndex( StatusTable.COL_RFI ) ) + "%";
+		sa[0] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFW) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFWO)));
+		sa[1] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFRB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFRBO)));
+		sa[2] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFR) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFRO)));
+		sa[3] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFG) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFGO)));
+		sa[4] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_RFBO)));
+		sa[5] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_RFI) ),
+	                                           c.getShort( c.getColumnIndex(StatusTable.COL_RFIO)));
 		return sa;
 	}
+	
+	private short[] getRadionValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_RADION_LIGHT_CHANNELS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_RFW) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_RFRB) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_RFR) );
+		v[3] = c.getShort( c.getColumnIndex(StatusTable.COL_RFG) );
+		v[4] = c.getShort( c.getColumnIndex(StatusTable.COL_RFB) );
+		v[5] = c.getShort( c.getColumnIndex(StatusTable.COL_RFI) );
+		return v;
+	}
 
-	private String[] getVortechValues ( Cursor c ) {
+	private String[] getVortechTextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_VORTECH_VALUES];
 		String s = "";
 		int v, mode;
@@ -666,16 +912,32 @@ public class StatusActivity extends BaseActivity implements
 		sa[Controller.VORTECH_DURATION] = s;
 		return sa;
 	}
+	
+	private short[] getVortechValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_VORTECH_VALUES];
+		v[Controller.VORTECH_MODE] = c.getShort( c.getColumnIndex( StatusTable.COL_RFM ) );
+		v[Controller.VORTECH_SPEED] = c.getShort( c.getColumnIndex( StatusTable.COL_RFS ) );
+		v[Controller.VORTECH_DURATION] = c.getShort( c.getColumnIndex( StatusTable.COL_RFD ) );
+		return v;
+	}
 
-	private String[] getAIValues ( Cursor c ) {
+	private String[] getAITextValues ( Cursor c ) {
 		String[] sa = new String[Controller.MAX_AI_CHANNELS];
-		sa[Controller.AI_WHITE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIW ) ) + "%";
-		sa[Controller.AI_BLUE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIB ) ) + "%";
-		sa[Controller.AI_ROYALBLUE] =
-				c.getString( c.getColumnIndex( StatusTable.COL_AIRB ) ) + "%";
+		sa[Controller.AI_WHITE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIW) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIWO)));
+		sa[Controller.AI_BLUE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIBO)));
+		sa[Controller.AI_ROYALBLUE] = Controller.getPWMDisplayValue( c.getShort( c.getColumnIndex(StatusTable.COL_AIRB) ),
+		                                       c.getShort( c.getColumnIndex(StatusTable.COL_AIRBO)));
 		return sa;
+	}
+	
+	private short[] getAIValues ( Cursor c ) {
+		short[] v = new short[Controller.MAX_AI_CHANNELS];
+		v[0] = c.getShort( c.getColumnIndex(StatusTable.COL_AIW) );
+		v[1] = c.getShort( c.getColumnIndex(StatusTable.COL_AIB) );
+		v[2] = c.getShort( c.getColumnIndex(StatusTable.COL_AIRB) );
+		return v;
 	}
 
 	private String[] getIOValues ( Cursor c ) {
@@ -712,11 +974,11 @@ public class StatusActivity extends BaseActivity implements
 										.getColumnIndex( StatusTable.COL_C7 ) ) };
 	}
 
-	private void checkDeviceModules ( short newEM, short newREM ) {
+	private void checkDeviceModules ( short newEM, short newEM1, short newREM ) {
 		// FIXME fix preference setting functions
 		boolean fReload = false;
 		short oldEM = (short) rapp.raprefs.getPreviousEM();
-		Log.d( TAG, "Old: " + oldEM + " New: " + newEM );
+		Log.d( TAG, "EM: Old: " + oldEM + " New: " + newEM );
 		if ( oldEM != newEM ) {
 			// expansion modules different
 			// set flag to reload the pages
@@ -772,12 +1034,48 @@ public class StatusActivity extends BaseActivity implements
 			else
 				f = false;
 			Log.d( TAG, "WATER: " + f );
-			rapp.raprefs.set( R.string.prefWaterLevelVisibilityKey, f );
+			String key;
+			for ( int i = 0; i < Controller.MAX_WATERLEVEL_PORTS; i++ ) {
+				key = "wl";
+				if ( i > 0 ) key += i;
+				key += "_visibility";
+				rapp.raprefs.set( key, f );
+			}
 
 			// update the previous settings to the new ones after we change
 			rapp.raprefs.setPreviousEM( newEM );
 		}
 
+		short oldEM1 = (short) rapp.raprefs.getPreviousEM1();
+		Log.d( TAG, "EM1: Old: " + oldEM1 + " New: " + newEM1 );
+		if ( oldEM1 != newEM1 ) {
+			fReload = true;
+			boolean f = false;
+			if ( Controller.isHumidityModuleInstalled( newEM1 ) )
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "Humidity: " + f);
+			// TODO finish setting EM1 modules
+			rapp.raprefs.set( R.string.prefHumidityVisibilityKey, f );
+			
+			if ( Controller.isDCPumpControlModuleInstalled( newEM1 ) )
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "DCPump: " + f);
+			//rapp.raprefs.set( R.string.prefExpDCPumpEnableKey, f );
+			
+			if ( Controller.isLeakDetectorModuleInstalled( newEM1 ) ) 
+				f = true;
+			else
+				f = false;
+			Log.d(TAG, "Leak Detector: " + f);
+			//rapp.raprefs.set( R.string.prefExpLeakDetectorEnableKey, f );
+			
+			rapp.raprefs.setPreviousEM1( newEM1 );
+		}
+		
 		int newRQty = Controller.getRelayExpansionModulesInstalled( newREM );
 		int oldRQty = rapp.raprefs.getExpansionRelayQuantity();
 		Log.d( TAG, "Old Qty: " + oldRQty + " New Qty: " + newRQty );
@@ -814,8 +1112,8 @@ public class StatusActivity extends BaseActivity implements
 
 	@Override
 	public boolean onCreateOptionsMenu ( Menu menu ) {
-		getMenuInflater().inflate( R.menu.status_menu, menu );
-		return super.onCreateOptionsMenu(menu);
+		getMenuInflater().inflate(R.menu.status_menu, menu);
+		return super.onCreateOptionsMenu( menu );
 	}
 
 	@Override
@@ -857,9 +1155,9 @@ public class StatusActivity extends BaseActivity implements
 				i.putExtra( Globals.PRE10_LOCATIONS,
 							rapp.raprefs.useOldPre10MemoryLocations() );
 				break;
-			case R.id.commands:
-				// launch commands
-				i = new Intent( this, CommandTabsActivity.class );
+			case R.id.datetime:
+				// launch date & time
+				i = new Intent( this, DateTimeActivity.class );
 				break;
 			default:
 				return super.onOptionsItemSelected( item );
@@ -893,6 +1191,10 @@ public class StatusActivity extends BaseActivity implements
 					appPages[j] = pageCommands;
 					j++;
 					break;
+				case POS_FLAGS:
+					appPages[j] = pageFlags;
+					j++;
+					break;
 				case POS_CONTROLLER:
 					// Log.d( TAG, j + ": Controller" );
 					appPages[j] = pageController;
@@ -902,6 +1204,13 @@ public class StatusActivity extends BaseActivity implements
 					if ( rapp.raprefs.getDimmingModuleEnabled() ) {
 						// Log.d( TAG, j + ": Dimming" );
 						appPages[j] = pageDimming;
+						j++;
+					}
+					break;
+				case POS_SC_DIMMING:
+					if ( rapp.raprefs.getSCDimmingModuleEnabled() ) {
+						// Log.d( TAG, j + ": SCDimming" );
+						appPages[j] = pageSCDimming;
 						j++;
 					}
 					break;
